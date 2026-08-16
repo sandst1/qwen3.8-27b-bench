@@ -277,6 +277,38 @@ def collect_tokens(stdout: str) -> dict:
     return _finalise(steps, messages, sorted(sessions))
 
 
+def _extract_reasoning_parts(session_ids: list[str]) -> list[dict]:
+    """Collect reasoning parts from exports.
+
+    opencode's --format json stream never emits reasoning parts; they only
+    appear in `opencode export`.  Returns one dict per part, in session order.
+    """
+    parts: list[dict] = []
+    seen: set = set()
+    for sid in session_ids:
+        doc = _opencode_json(["export", sid])
+        if doc is None:
+            continue
+
+        def _collect(obj: object) -> None:
+            if isinstance(obj, dict):
+                if obj.get("type") == "reasoning" and isinstance(obj.get("text"), str):
+                    key = obj.get("id") or id(obj)
+                    if key not in seen:
+                        seen.add(key)
+                        parts.append({k: obj[k] for k in
+                                      ("type", "id", "sessionID", "messageID", "text", "time")
+                                      if k in obj})
+                for v in obj.values():
+                    _collect(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    _collect(v)
+
+        _collect(doc)
+    return parts
+
+
 # --------------------------------------------------------------------------
 # run
 # --------------------------------------------------------------------------
@@ -316,6 +348,15 @@ def _do_run(n: int, total: int, label: str, args, prompt: str) -> None:
 
     (dest / "_events.jsonl").write_text(stdout)
     (dest / "_agent.log").write_text(stderr)
+
+    # Reasoning parts are never emitted in the stream; pull them from export.
+    reasoning_parts = _extract_reasoning_parts(tokens.get("sessions", []))
+    if reasoning_parts:
+        (dest / "_reasoning.jsonl").write_text(
+            "\n".join(json.dumps(p) for p in reasoning_parts) + "\n"
+        )
+    reasoning_chars = sum(len(p.get("text", "")) for p in reasoning_parts)
+
     metrics = {
         "model": args.model,
         "variant": args.variant,
@@ -324,12 +365,19 @@ def _do_run(n: int, total: int, label: str, args, prompt: str) -> None:
         "exit_code": code,
         "seconds": round(seconds, 1),
         "tokens": tokens,
+        # reasoning_chars: total chars of reasoning/thinking text from export.
+        # The provider folds these into output tokens rather than reporting them
+        # separately, so tokens.reasoning stays 0 — this field is the only way
+        # to see how much the model actually thought.
+        "reasoning_chars": reasoning_chars,
         "started_at": datetime.fromtimestamp(wall_start, timezone.utc).isoformat(),
     }
     (dest / "_metrics.json").write_text(json.dumps(metrics, indent=2))
+    reasoning_note = f" / thinking {reasoning_chars:,} chars" if reasoning_chars else ""
     print(
         f"[bench]   {label}/run-{n} exit {code}, {seconds/60:.1f} min, "
-        f"in {tokens['input']} / out {tokens['output']} / reasoning {tokens['reasoning']} "
+        f"in {tokens['input']} / out {tokens['output']} / reasoning {tokens['reasoning']}"
+        f"{reasoning_note} "
         f"/ cache r{tokens['cache_read']} w{tokens['cache_write']} "
         f"(total {tokens['total']}, ${tokens['cost']:.3f}, via {tokens['source']})"
     )
