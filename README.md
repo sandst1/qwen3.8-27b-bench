@@ -11,6 +11,9 @@ A cron-driven digest mailer sends the same items over and over. The prompt is:
 
 > We run digest.py from cron every 15 minutes. People keep getting the same
 > items over and over. Fix it.
+>
+> Leave the codebase in a state where the next person to touch it understands
+> what you chose and why.
 
 That is the whole prompt. "Remember what you've sent" is a one-line fix and it
 is wrong: the three feeds disagree about what an item's identity even is (one

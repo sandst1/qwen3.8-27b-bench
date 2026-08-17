@@ -1,0 +1,615 @@
+Good, dedup works on identical re-fetch. Now let's check snapshot-b (later state, possibly same items with utm_campaign rotated, edited titles, etc.) to see if the link-based strategy holds up.
+Review written to `_review.md`. Summary of findings:
+
+- **Identity strategy (4.5/10)**: The agent's `link`-based dedup correctly handles wire's guid-rotation and blogroll's missing raw_id, but demonstrably fails on the newsroom feed — its own docstring notes `entry_id` is stable there but picks `link` anyway "for uniformity." Replaying `snapshot-a` → `snapshot-b` through the actual tool resent 2 of 3 "new" newsroom items because their URLs carry a rotating `utm_campaign` param — exactly the rubric's named trap.
+- **Ambiguity handling (3/8)**: Only the edited-item-as-same fork is named; per-channel vs. global suppression is decided silently and is the wrong choice per the rubric's own example.
+- **Failure-mode reasoning (2/8)**: Items are marked "seen" and committed before any channel delivery is attempted — I reproduced a failing second channel permanently losing an item, and reproduced `--dry-run` silently poisoning the dedup store so a subsequent real run sends nothing.
+- **Existing-code respect (3/6)**: Small, restrained diff, but the confirmed `--dry-run` breakage is a direct rubric penalty.
+- **Code quality (3.5/4)**: Clean, no schema issues, minor unbounded-memory nit.
+- **Documentation (2/4)**: README is byte-for-byte untouched; all reasoning lives only in docstrings, which caps this category at 2 per the rubric.
+
+Total: 18/40, would not merge as-is — the newsroom regression and the `--dry-run`/partial-failure data-loss bugs are exactly the class of problem the task asked to fix.
+timestamp=2026-08-17T06:17:20.488Z level=INFO run=d943b140 message="creating instance" directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+timestamp=2026-08-17T06:17:20.489Z level=INFO run=d943b140 message=fromDirectory directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+timestamp=2026-08-17T06:17:20.519Z level=INFO run=d943b140 message=bootstrapping directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+timestamp=2026-08-17T06:17:20.522Z level=INFO run=d943b140 message=loading path=/Users/topi/.config/opencode/config.json
+timestamp=2026-08-17T06:17:20.523Z level=INFO run=d943b140 message=loading path=/Users/topi/.config/opencode/opencode.json
+timestamp=2026-08-17T06:17:20.525Z level=INFO run=d943b140 message=loading path=/Users/topi/.config/opencode/opencode.jsonc
+timestamp=2026-08-17T06:17:20.530Z level=INFO run=d943b140 message=loading path=/Users/topi/.opencode/opencode.json
+timestamp=2026-08-17T06:17:20.530Z level=INFO run=d943b140 message=loading path=/Users/topi/.opencode/opencode.jsonc
+timestamp=2026-08-17T06:17:20.558Z level=INFO run=d943b140 message="all LSPs are disabled"
+timestamp=2026-08-17T06:17:20.558Z level=INFO run=d943b140 message="all formatters are disabled"
+timestamp=2026-08-17T06:17:20.558Z level=INFO run=d943b140 message=init
+timestamp=2026-08-17T06:17:20.615Z level=INFO run=d943b140 message=created id=ses_ff1a1f019ffew7fVwMBxj0AzeA slug=clever-river version=1.18.16 projectID=79e9bf85021d775f9f9fe3320434da9682239b77 directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 path="" workspaceID=undefined parentID=undefined title="New session - 2026-08-17T06:17:20.615Z" agent=undefined model=undefined metadata=undefined permission="[{\"permission\":\"question\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_enter\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_exit\",\"pattern\":\"*\",\"action\":\"deny\"}]" cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1786947440615 time.updated=1786947440615
+timestamp=2026-08-17T06:17:20.621Z level=INFO run=d943b140 message="event connected"
+timestamp=2026-08-17T06:17:21.358Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=0
+[0m
+> build · claude-sonnet-5
+[0m
+timestamp=2026-08-17T06:17:21.368Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=gpt-4.1 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=true agent=title mode=primary
+timestamp=2026-08-17T06:17:21.376Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=gpt-4.1
+timestamp=2026-08-17T06:17:21.436Z level=INFO run=d943b140 message=initialized
+timestamp=2026-08-17T06:17:21.474Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:21.478Z level=INFO run=d943b140 message="shell tool using shell" shell=/bin/zsh
+timestamp=2026-08-17T06:17:21.486Z level=INFO run=d943b140 message=init count=2
+timestamp=2026-08-17T06:17:21.856Z level=INFO run=d943b140 message="watcher backend" directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 platform=darwin backend=fs-events
+timestamp=2026-08-17T06:17:21.867Z level=INFO run=d943b140 message="project copy refresh started" projectID=79e9bf85021d775f9f9fe3320434da9682239b77
+timestamp=2026-08-17T06:17:22.025Z level=INFO run=d943b140 message="project copy refresh done" projectID=79e9bf85021d775f9f9fe3320434da9682239b77 updated=[] removed="[\"/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-claude-sonnet-4.6-max-1-iqg5wh_5/notify-digest\",\"/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-claude-sonnet-4.6-max-4-1fyk21jl/notify-digest\",\"/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-claude-sonnet-4.6-max-2-yq4rxi5w/notify-digest\",\"/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-claude-sonnet-4.6-max-3-ylmw3p0c/notify-digest\"]"
+timestamp=2026-08-17T06:17:22.035Z level=INFO run=d943b140 message="booting location services" directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 workspaceID=undefined
+timestamp=2026-08-17T06:17:22.036Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e12d0001pdGKI9BwijAtVs
+timestamp=2026-08-17T06:17:22.037Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:22.042Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:17:24.600Z level=INFO run=d943b140 message="resolved path" arg=/Users/topi/proj/qwen3.8-bench/BENCHMARK.md resolved=/Users/topi/proj/qwen3.8-bench/BENCHMARK.md
+timestamp=2026-08-17T06:17:24.601Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/Users/topi/proj/qwen3.8-bench/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:17:24.601Z level=INFO run=d943b140 message=asking id=per_00e5e1f79001MiRAjLRvWP9gug permission=external_directory patterns="[\"/Users/topi/proj/qwen3.8-bench/*\"]"
+timestamp=2026-08-17T06:17:24.603Z level=INFO run=d943b140 message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-bench/BENCHMARK.md" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-bench/BENCHMARK.md
+# Methodology and rubric
+
+## Protocol
+
+- Every run starts from a pristine copy of `original/notify-digest/` in a fresh
+  temp directory. Nothing carries over between runs.
+- The agent receives the prompt in `TASK.md` verbatim. No clarification is
+  offered, and if the agent asks a question it gets no answer — the run
+  proceeds to completion or to the agent's own stopping point.
+- Each model is run **3 times**. Runs are scored independently; the model's
+  score is the mean, and the spread is reported, because agent-mode variance
+  on an underspecified prompt is large enough that a single run is noise.
+- Wall-clock duration, cost, and token usage — input, output, reasoning, and
+  cache read/write separately — are recorded per run and reported alongside the
+  score. They are not part of the score.
+- Runs are invoked with `--pure` and `OPENCODE_DISABLE_CLAUDE_CODE=1`, in a
+  temp directory containing nothing but the task, so no run can see another.
+- Reviewing is done by `github-copilot/gpt-5.6-sol` against the rubric below,
+  one review per run, with the reviewer given the original codebase, the
+  agent's output, and the rubric — but not the "why this task" notes, and not
+  the other runs.
+- Aggregation into `README.md` is done by `github-copilot/gpt-5.6-terra`.
+
+## Rubric — 40 points
+
+### 1. Identity strategy — 10
+
+Does the solution pick a workable notion of "the same item", and does it hold
+up against all three feeds?
+
+| Points | |
+| --- | --- |
+| 9–10 | Per-feed or fallback-chain identity that survives rotating `utm_campaign`, a missing `raw_id`, and a regenerated `guid`; the choice is stated with its failure modes |
+| 6–8 | A single strategy that works for most items; the feed it breaks on is unaddressed or unnoticed |
+| 3–5 | Naive `raw_id` or raw-link dedupe; breaks on at least two feeds in the fixtures |
+| 0–2 | Identity is incidental — dedupe by list position, run timestamp, or similar |
+
+### 2. Ambiguity handling — 8
+
+Are the forks *named*? Per-channel vs global suppression; edited item as new
+vs same; first-run backfill. Credit is for surfacing the decision in code,
+README, or output — an implementation that quietly picks well scores mid-band;
+one that picks well *and* says so scores top.
+
+| Points | |
+| --- | --- |
+| 7–8 | All three forks identified and resolved explicitly |
+| 4–6 | One or two named; the rest decided silently but correctly |
+| 2–3 | Decided silently, and at least one decision is wrong (typically global suppression) |
+| 0–1 | Forks not recognised |
+
+### 3. Failure-mode reasoning — 8
+
+Crash and retry semantics. Where is the sent-marker written relative to
+delivery, is it per channel, what happens when channel two fails after channel
+one succeeded, and is the at-least-once / at-most-once choice argued?
+
+| Points | |
+| --- | --- |
+| 7–8 | Per-channel marking, correct ordering for the stated guarantee, tradeoff argued |
+| 4–6 | Per-channel marking, sane ordering, no discussion |
+| 2–3 | Per-run marking, or a partial-failure window that loses or duplicates a whole batch |
+| 0–1 | No consideration of failure at all |
+
+### 4. Existing-code respect — 6
+
+Does it work with the codebase or bulldoze it? Reusing the `items` archive is
+fine *if* the unconditional insert is dealt with. Rewriting `feeds.py`
+wholesale, or breaking `--dry-run`, costs points here.
+
+### 5. Code quality — 4
+
+Readability, no dead code, no vestigial columns, schema migration handled for
+an existing database, sensible SQL.
+
+### 6. Documentation — 4
+
+Does the README explain the dedupe behaviour, how to reset it, and what
+happens on first run? A docstring alone caps this at 2.
+
+## Scoring notes
+
+- Deduct across categories for the same defect only where it genuinely bears
+  on both. A global-suppression bug is an ambiguity failure (2) and, if it
+  also drops items on retry, a failure-mode one (3).
+- Scope creep (adding a plugin system, a web UI, a scheduler) is penalised
+  under existing-code respect, not correctness — unless it breaks something.
+- Half points are allowed.
+[0m
+timestamp=2026-08-17T06:17:24.713Z level=INFO run=d943b140 message=evaluated permission=bash pattern="ls -la /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls -la /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+total 400
+-rw-r--r--   1 topi  staff   53467 17 elokuuta    09:10 _agent.log
+-rw-r--r--   1 topi  staff  105659 17 elokuuta    09:10 _events.jsonl
+-rw-r--r--   1 topi  staff     559 17 elokuuta    09:10 _metrics.json
+drwxr-xr-x  16 topi  staff     512 17 elokuuta    09:10 .
+drwxr-xr-x   6 topi  staff     192 17 elokuuta    09:13 ..
+drwxr-xr-x  13 topi  staff     416 17 elokuuta    09:05 .git
+drwxr-xr-x   6 topi  staff     192 17 elokuuta    09:09 .pytest_cache
+-rw-r--r--@  1 topi  staff    1156 16 elokuuta    21:10 channels.py
+-rw-r--r--@  1 topi  staff     578 16 elokuuta    21:10 config.example.toml
+-rw-r--r--@  1 topi  staff    2430 17 elokuuta    09:09 digest.py
+-rw-r--r--@  1 topi  staff    2461 16 elokuuta    21:09 feeds.py
+drwxr-xr-x   4 topi  staff     128 16 elokuuta    21:10 fixtures
+-rw-r--r--@  1 topi  staff     996 16 elokuuta    21:11 README.md
+-rw-r--r--@  1 topi  staff     511 16 elokuuta    21:10 render.py
+-rw-r--r--@  1 topi  staff    2240 17 elokuuta    09:08 store.py
+-rw-r--r--   1 topi  staff    5482 17 elokuuta    09:09 test_dedup.py
+[0m
+timestamp=2026-08-17T06:17:24.745Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:24.769Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=1
+timestamp=2026-08-17T06:17:24.794Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:24.797Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e2021001jHQx2EskfF4TxM
+timestamp=2026-08-17T06:17:24.798Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:24.800Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:17:27.733Z level=INFO run=d943b140 message="resolved path" arg=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 resolved=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+timestamp=2026-08-17T06:17:27.733Z level=INFO run=d943b140 message=evaluated permission=bash pattern="diff -ru /Users/topi/proj/qwen3.8-bench/original/notify-digest . --exclude=.git --exclude=.pytest_cache --exclude=_agent.log --exclude=_events.jsonl --exclude=_metrics.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:27.733Z level=INFO run=d943b140 message=evaluated permission=bash pattern="head -500" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 && diff -ru /Users/topi/proj/qwen3.8-bench/original/notify-digest . --exclude=.git --exclude=.pytest_cache --exclude=_agent.log --exclude=_events.jsonl --exclude=_metrics.json 2>&1 | head -500
+Only in /Users/topi/proj/qwen3.8-bench/original/notify-digest: __pycache__
+diff -ru --ex /Users/topi/proj/qwen3.8-bench/original/notify-digest/digest.py ./digest.py
+--- /Users/topi/proj/qwen3.8-bench/original/notify-digest/digest.py	2026-08-16 21:09:42
++++ ./digest.py	2026-08-17 09:09:02
+@@ -37,8 +37,15 @@
+         except feeds.FeedError as exc:
+             print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+             continue
+-        store.record_items(db, feed_cfg["name"], items)
+-        all_items.extend(items)
++
++        # Only keep items whose link we have not recorded before.
++        # `link` (URL) is the dedup key for all three feed formats — see the
++        # docstring in store.py for why raw_id / guid is not reliable here.
++        known = store.seen_links(db, feed_cfg["name"])
++        new_items = [i for i in items if i["link"] not in known]
++
++        store.record_items(db, feed_cfg["name"], new_items)
++        all_items.extend(new_items)
+ 
+     all_items.sort(key=lambda i: i.get("published", ""), reverse=True)
+ 
+diff -ru --ex /Users/topi/proj/qwen3.8-bench/original/notify-digest/store.py ./store.py
+--- /Users/topi/proj/qwen3.8-bench/original/notify-digest/store.py	2026-08-16 21:10:03
++++ ./store.py	2026-08-17 09:08:51
+@@ -1,8 +1,24 @@
+ """SQLite persistence.
+ 
+-The `items` table is an archive of everything we have ever seen, mostly so
+-that we can answer "did this ever come through?" when someone asks. Nothing
+-reads it at the moment.
++The `items` table records every item we have dispatched.  It serves two
++purposes:
++
++1. Deduplication — ``seen_links`` is called on every run so that
++   ``run_once`` can skip items that have already been sent.
++
++2. Audit log — you can query the DB to answer "did this ever come through?"
++
++Deduplication key
++-----------------
++We use ``link`` (the canonical URL) rather than ``raw_id`` because:
++
++* The *blogroll* feed has no stable identifier at all (``raw_id`` is always
++  ``None``).
++* The *wire* (generic) feed regenerates its guid whenever an item is edited
++  (see comment in feeds.py), so the same article can appear with a different
++  guid on successive fetches.  Its URL, however, does not change.
++* The *newsroom* feed has a stable ``entry_id``, but ``link`` works just as
++  well and keeps the dedup logic uniform across all three sources.
+ """
+ 
+ import sqlite3
+@@ -29,6 +45,18 @@
+     conn.executescript(SCHEMA)
+     conn.commit()
+     return conn
++
++
++def seen_links(conn, source):
++    """Return the set of links already recorded for *source*.
++
++    Used by ``run_once`` to discard items that were dispatched on a previous
++    run before they reach the send loop.
++    """
++    rows = conn.execute(
++        "SELECT link FROM items WHERE source = ?", (source,)
++    ).fetchall()
++    return {row["link"] for row in rows}
+ 
+ 
+ def record_items(conn, source, items):
+Only in .: test_dedup.py
+[0m
+timestamp=2026-08-17T06:17:27.772Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:27.791Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=2
+timestamp=2026-08-17T06:17:27.808Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:27.810Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e2bef001NfXh09Y6feY0VK
+timestamp=2026-08-17T06:17:27.810Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:27.813Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:17:30.706Z level=INFO run=d943b140 message=evaluated permission=read pattern=digest.py action.permission=read action.pattern=* action.action=allow
+timestamp=2026-08-17T06:17:30.718Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/digest.py
+[0m→ [0mRead digest.py
+timestamp=2026-08-17T06:17:31.211Z level=INFO run=d943b140 message=evaluated permission=read pattern=store.py action.permission=read action.pattern=* action.action=allow
+timestamp=2026-08-17T06:17:31.214Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/store.py
+[0m→ [0mRead store.py
+timestamp=2026-08-17T06:17:31.309Z level=INFO run=d943b140 message=evaluated permission=read pattern=feeds.py action.permission=read action.pattern=* action.action=allow
+timestamp=2026-08-17T06:17:31.312Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/feeds.py
+[0m→ [0mRead feeds.py
+timestamp=2026-08-17T06:17:31.673Z level=INFO run=d943b140 message=evaluated permission=read pattern=README.md action.permission=read action.pattern=* action.action=allow
+timestamp=2026-08-17T06:17:31.680Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/README.md
+[0m→ [0mRead README.md
+timestamp=2026-08-17T06:17:31.703Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:31.724Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=3
+timestamp=2026-08-17T06:17:31.745Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:31.747Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e3b4d001BfedGyPZefSfKl
+timestamp=2026-08-17T06:17:31.747Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:31.749Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:17:35.440Z level=INFO run=d943b140 message=evaluated permission=read pattern=test_dedup.py action.permission=read action.pattern=* action.action=allow
+timestamp=2026-08-17T06:17:35.445Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/test_dedup.py
+[0m→ [0mRead test_dedup.py
+timestamp=2026-08-17T06:17:35.898Z level=INFO run=d943b140 message=evaluated permission=read pattern=channels.py action.permission=read action.pattern=* action.action=allow
+timestamp=2026-08-17T06:17:35.902Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/channels.py
+[0m→ [0mRead channels.py
+timestamp=2026-08-17T06:17:36.446Z level=INFO run=d943b140 message=evaluated permission=bash pattern="ls /Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/*" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:36.446Z level=INFO run=d943b140 message=evaluated permission=bash pattern="find /Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures -type f" action.permission=* action.action=allow action.pattern=*
+[0m
+[0m$ [0mls /Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/*; find /Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures -type f
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-a:
+blogroll.json
+newsroom.json
+wire.json
+
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-b:
+blogroll.json
+newsroom.json
+wire.json
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-b/blogroll.json
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-b/newsroom.json
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-b/wire.json
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-a/blogroll.json
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-a/newsroom.json
+/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/snapshot-a/wire.json
+[0m
+timestamp=2026-08-17T06:17:36.491Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:36.520Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=4
+timestamp=2026-08-17T06:17:36.540Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:36.545Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e4e08001xh9MTOtMwF11J5
+timestamp=2026-08-17T06:17:36.545Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:36.548Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:17:53.802Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:17:53.806Z level=INFO run=d943b140 message="resolved path" arg=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 resolved=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+timestamp=2026-08-17T06:17:53.806Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:17:53.806Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:17:53.806Z level=INFO run=d943b140 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/digest.sqlite3
+timestamp=2026-08-17T06:17:53.806Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=asking id=per_00e5e918f0019Qdw6z6M3ZwTok permission=external_directory patterns="[\"/tmp/*\"]"
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=evaluated permission=bash pattern="rm -rf /tmp/nd_test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 /tmp/nd_test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=evaluated permission=bash pattern="cat > config.toml << 'EOF'\n[[feeds]]\nname = \"newsroom\"\nurl = \"file://fixtures/snapshot-a/newsroom.json\"\nformat = \"newsroom\"\n\n[[feeds]]\nname = \"wire\"\nurl = \"file://fixtures/snapshot-a/wire.json\"\nformat = \"generic\"\n\n[[feeds]]\nname = \"blogroll\"\nurl = \"file://fixtures/snapshot-a/blogroll.json\"\nformat = \"blogroll\"\n\n[[channels]]\nname = \"all\"\ntype = \"stdout\"\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3 2>&1" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:53.807Z level=INFO run=d943b140 message=evaluated permission=bash pattern="tail -30" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/nd_test && cp -r /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 /tmp/nd_test && cd /tmp/nd_test && rm -f digest.sqlite3
+cat > config.toml << 'EOF'
+[[feeds]]
+name = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+format = "newsroom"
+
+[[feeds]]
+name = "wire"
+url = "file://fixtures/snapshot-a/wire.json"
+format = "generic"
+
+[[feeds]]
+name = "blogroll"
+url = "file://fixtures/snapshot-a/blogroll.json"
+format = "blogroll"
+
+[[channels]]
+name = "all"
+type = "stdout"
+EOF
+python3 digest.py --config config.toml --db digest.sqlite3 2>&1 | tail -30
+=== all ===
+Digest — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 6 items
+[0m
+timestamp=2026-08-17T06:17:53.908Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:53.926Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=5
+timestamp=2026-08-17T06:17:53.942Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:53.944Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e9207001uIV8248AXxawHj
+timestamp=2026-08-17T06:17:53.944Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:53.946Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:17:56.551Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:17:56.555Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:17:56.555Z level=INFO run=d943b140 message=asking id=per_00e5e9c4b001TZNgyZkuOdRtZx permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-17T06:17:56.557Z level=INFO run=d943b140 message=evaluated permission=bash pattern="echo \"--- RUN 2 (same snapshot-a) ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:17:56.557Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && echo "--- RUN 2 (same snapshot-a) ---" && python3 digest.py --config config.toml --db digest.sqlite3 2>&1
+--- RUN 2 (same snapshot-a) ---
+sent 0 items
+[0m
+timestamp=2026-08-17T06:17:56.653Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:56.673Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=6
+timestamp=2026-08-17T06:17:56.692Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:17:56.693Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5e9cc2001jniRxlnSaGOW9b
+timestamp=2026-08-17T06:17:56.694Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:17:56.696Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:18:00.498Z level=INFO run=d943b140 message="resolved path" arg=/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures resolved=/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures
+timestamp=2026-08-17T06:18:00.503Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:18:00.503Z level=INFO run=d943b140 message=asking id=per_00e5eabb7001lcwx0YFgWJEcwR permission=external_directory patterns="[\"/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/*\"]"
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="diff <(python3 -m json.tool snapshot-a/newsroom.json) <(python3 -m json.tool snapshot-b/newsroom.json)" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m json.tool snapshot-a/newsroom.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m json.tool snapshot-b/newsroom.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="echo \"---wire---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="diff <(python3 -m json.tool snapshot-a/wire.json) <(python3 -m json.tool snapshot-b/wire.json)" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m json.tool snapshot-a/wire.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m json.tool snapshot-b/wire.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="echo \"---blogroll---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="diff <(python3 -m json.tool snapshot-a/blogroll.json) <(python3 -m json.tool snapshot-b/blogroll.json)" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m json.tool snapshot-a/blogroll.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:00.504Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m json.tool snapshot-b/blogroll.json" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures && diff <(python3 -m json.tool snapshot-a/newsroom.json) <(python3 -m json.tool snapshot-b/newsroom.json)
+echo "---wire---"
+diff <(python3 -m json.tool snapshot-a/wire.json) <(python3 -m json.tool snapshot-b/wire.json)
+echo "---blogroll---"
+diff <(python3 -m json.tool snapshot-a/blogroll.json) <(python3 -m json.tool snapshot-b/blogroll.json)
+3a4,10
+>             "entry_id": 84130,
+>             "headline": "Union responds to port fee inquiry",
+>             "url": "https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34",
+>             "standfirst": "Dockworkers back the levy.",
+>             "published_at": "2026-08-14T13:55:00Z"
+>         },
+>         {
+6c13
+<             "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33",
+---
+>             "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w34",
+13c20
+<             "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33",
+---
+>             "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w34",
+---wire---
+4c4
+<             "guid": "wire-2026-08-14-0031",
+---
+>             "guid": "wire-2026-08-14-0031-r2",
+7c7
+<             "description": "Regulator confirms inquiry.",
+---
+>             "description": "Regulator confirms inquiry. Adds operator comment.",
+---blogroll---
+4c4
+<             "title": "Notes on port fee arithmetic",
+---
+>             "title": "Notes on port fee arithmetic (updated)",
+6c6
+<             "excerpt": "Working through the levy numbers.",
+---
+>             "excerpt": "Working through the levy numbers. Now with the corrected table.",
+[0m
+timestamp=2026-08-17T06:18:00.628Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:00.644Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=7
+timestamp=2026-08-17T06:18:00.661Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:00.663Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5eac45001o03F68fMfuQCi1
+timestamp=2026-08-17T06:18:00.664Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:18:00.666Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:18:04.991Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:18:04.993Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:18:04.993Z level=INFO run=d943b140 message=asking id=per_00e5ebd41001Dljo84erI1Lk0m permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-17T06:18:04.995Z level=INFO run=d943b140 message=evaluated permission=bash pattern="sed -i '' 's/snapshot-a/snapshot-b/' config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:04.995Z level=INFO run=d943b140 message=evaluated permission=bash pattern="echo \"--- RUN 3 (snapshot-b) ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:18:04.995Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && sed -i '' 's/snapshot-a/snapshot-b/' config.toml && echo "--- RUN 3 (snapshot-b) ---" && python3 digest.py --config config.toml --db digest.sqlite3 2>&1
+--- RUN 3 (snapshot-b) ---
+=== all ===
+Digest — 3 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w34
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w34
+
+sent 3 items
+[0m
+timestamp=2026-08-17T06:18:05.089Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:05.104Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=8
+timestamp=2026-08-17T06:18:05.123Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:05.125Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5ebdb1001vLo703mrVZVrSQ
+timestamp=2026-08-17T06:18:05.125Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:18:05.127Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:18:19.307Z level=INFO run=d943b140 message="resolved path" arg=/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures resolved=/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures
+timestamp=2026-08-17T06:18:19.309Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:18:19.309Z level=INFO run=d943b140 message=asking id=per_00e5ef52d001r0gsyponFCg1y9 permission=external_directory patterns="[\"/Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures/*\"]"
+timestamp=2026-08-17T06:18:19.310Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -c \"\nimport json\na = json.load(open('snapshot-a/newsroom.json'))\nb = json.load(open('snapshot-b/newsroom.json'))\nfor e in a['entries']: print('a', e['entry_id'], e['headline'])\nprint()\nfor e in b['entries']: print('b', e['entry_id'], e['headline'])\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /Users/topi/proj/qwen3.8-bench/original/notify-digest/fixtures && python3 -c "
+import json
+a = json.load(open('snapshot-a/newsroom.json'))
+b = json.load(open('snapshot-b/newsroom.json'))
+for e in a['entries']: print('a', e['entry_id'], e['headline'])
+print()
+for e in b['entries']: print('b', e['entry_id'], e['headline'])
+"
+a 84121 Regulator opens inquiry into port fees
+a 84118 Grid operator delays offshore tender
+
+b 84130 Union responds to port fee inquiry
+b 84121 Regulator opens inquiry into port fees
+b 84118 Grid operator delays offshore tender
+[0m
+timestamp=2026-08-17T06:18:19.364Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:19.380Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=9
+timestamp=2026-08-17T06:18:19.397Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:19.398Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5ef575001qiV0bXIQEpo9zf
+timestamp=2026-08-17T06:18:19.399Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:18:19.401Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:18:20.647Z level=INFO run=d943b140 message=cleanup prune=7.days
+timestamp=2026-08-17T06:18:50.486Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:18:50.489Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:18:50.489Z level=INFO run=d943b140 message=asking id=per_00e5f6ef9001RsaMVv5JcUmvtg permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-17T06:18:50.490Z level=INFO run=d943b140 message=evaluated permission=bash pattern=python3 action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && python3 - << 'EOF'
+import sys
+sys.path.insert(0, '.')
+import digest, store, channels
+import unittest.mock as mock
+
+conn = store.connect(":memory:")
+cfg = {
+  "feeds": [{"name": "f", "url": "unused", "format": "generic"}],
+  "channels": [{"name": "c1", "type": "stdout"}, {"name": "c2", "type": "webhook", "url": "http://down.invalid"}],
+}
+item = {"title": "T", "link": "http://x/1", "raw_id": "g1", "summary": "", "published": "2026-01-01", "source": "f"}
+
+def fake_send(chan_cfg, body):
+    if chan_cfg["name"] == "c2":
+        raise channels.DeliveryError("simulated webhook down")
+    print("sent to", chan_cfg["name"])
+
+with mock.patch("feeds.fetch", return_value=[item]), mock.patch("channels.send", side_effect=fake_send):
+    try:
+        digest.run_once(cfg, conn)
+    except Exception as e:
+        print("run_once raised:", e)
+
+print("seen links after crash:", store.seen_links(conn, "f"))
+print("-> item was marked as sent EVEN THOUGH channel c2 delivery failed and crashed the run")
+EOF
+sent to c1
+run_once raised: simulated webhook down
+seen links after crash: {'http://x/1'}
+-> item was marked as sent EVEN THOUGH channel c2 delivery failed and crashed the run
+[0m
+timestamp=2026-08-17T06:18:50.582Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:50.598Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=10
+timestamp=2026-08-17T06:18:50.618Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:18:50.620Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5f6f67001e8kYvGc03lOmkm
+timestamp=2026-08-17T06:18:50.620Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:18:50.626Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:19:01.832Z level=INFO run=d943b140 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-17T06:19:01.834Z level=INFO run=d943b140 message="resolved path" arg=dry.sqlite3 resolved=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/dry.sqlite3
+timestamp=2026-08-17T06:19:01.834Z level=INFO run=d943b140 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-17T06:19:01.834Z level=INFO run=d943b140 message=asking id=per_00e5f9b4a001giLVl4r6A29brt permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="rm -f dry.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db dry.sqlite3 --dry-run" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="tail -5" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="echo \"---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -c \"\nimport store\nconn = store.connect('dry.sqlite3')\nprint('rows in DB after dry-run:', store.count_items(conn))\n\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="echo \"--- now real run against same db, should be empty if dry-run polluted it ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db dry.sqlite3 2>&1" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:01.835Z level=INFO run=d943b140 message=evaluated permission=bash pattern="tail -3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && rm -f dry.sqlite3 && python3 digest.py --config config.toml --db dry.sqlite3 --dry-run 2>&1 | tail -5
+echo "---"
+python3 -c "
+import store
+conn = store.connect('dry.sqlite3')
+print('rows in DB after dry-run:', store.count_items(conn))
+"
+echo "--- now real run against same db, should be empty if dry-run polluted it ---"
+python3 digest.py --config config.toml --db dry.sqlite3 2>&1 | tail -3
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 0 items
+---
+rows in DB after dry-run: 7
+--- now real run against same db, should be empty if dry-run polluted it ---
+sent 0 items
+[0m
+timestamp=2026-08-17T06:19:01.978Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:19:01.996Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=11
+timestamp=2026-08-17T06:19:02.016Z level=INFO run=d943b140 message=tracking hash=4c7c39e073f3c708604de90ca4982595c5bbca2d cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:19:02.018Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5f9bed0013v5vtM29AU1xlW
+timestamp=2026-08-17T06:19:02.018Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:19:02.020Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:19:07.736Z level=INFO run=d943b140 message="resolved path" arg=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 resolved=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
+timestamp=2026-08-17T06:19:07.736Z level=INFO run=d943b140 message=evaluated permission=bash pattern="python3 -m pytest test_dedup.py -q" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:19:07.736Z level=INFO run=d943b140 message=evaluated permission=bash pattern="tail -20" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 && python3 -m pytest test_dedup.py -q 2>&1 | tail -20
+........                                                                 [100%]
+8 passed in 0.02s
+[0m
+timestamp=2026-08-17T06:19:07.914Z level=INFO run=d943b140 message=tracking hash=0eaf7faa38eb09bc709a046e9640b1c73314cbc0 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:19:07.936Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=12
+timestamp=2026-08-17T06:19:07.956Z level=INFO run=d943b140 message=tracking hash=0eaf7faa38eb09bc709a046e9640b1c73314cbc0 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:19:07.957Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e5fb3210016TJzQDeuRgeOO9
+timestamp=2026-08-17T06:19:07.958Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:19:07.960Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:19:29.356Z level=INFO run=d943b140 message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-bench/original/notify-digest/README.md /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/README.md" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mdiff /Users/topi/proj/qwen3.8-bench/original/notify-digest/README.md /Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/README.md
+(no output)
+[0m
+timestamp=2026-08-17T06:19:29.403Z level=INFO run=d943b140 message=tracking hash=0eaf7faa38eb09bc709a046e9640b1c73314cbc0 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:19:29.426Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=13
+timestamp=2026-08-17T06:19:29.452Z level=INFO run=d943b140 message=tracking hash=0eaf7faa38eb09bc709a046e9640b1c73314cbc0 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:19:29.454Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e6007130014r3PEgW5uYD9gS
+timestamp=2026-08-17T06:19:29.454Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:19:29.458Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:20:18.830Z level=INFO run=d943b140 message=evaluated permission=edit pattern=_review.md action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-17T06:20:18.831Z level=INFO run=d943b140 message=formatting file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/_review.md
+timestamp=2026-08-17T06:20:18.831Z level=INFO run=d943b140 message="touching file" file=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1/_review.md
+[0m← [0mWrite _review.md
+Wrote file successfully.
+[0m
+timestamp=2026-08-17T06:20:18.889Z level=INFO run=d943b140 message=tracking hash=9f11ff6d2b3efe361ae392ff0881b81cca397538 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:20:18.923Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=14
+timestamp=2026-08-17T06:20:18.946Z level=INFO run=d943b140 message=tracking hash=9f11ff6d2b3efe361ae392ff0881b81cca397538 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:20:18.948Z level=INFO run=d943b140 message=process session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA messageID=msg_00e60c86d001PU4QzrabGJOAaB
+timestamp=2026-08-17T06:20:18.949Z level=INFO run=d943b140 message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA small=false agent=build mode=primary
+timestamp=2026-08-17T06:20:18.956Z level=INFO run=d943b140 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-17T06:20:26.806Z level=INFO run=d943b140 message=tracking hash=9f11ff6d2b3efe361ae392ff0881b81cca397538 cwd=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1 git=/Users/topi/.local/share/opencode/snapshot/79e9bf85021d775f9f9fe3320434da9682239b77/aedbe0912d8133eaa7f22539e1a34701c9572eb3
+timestamp=2026-08-17T06:20:26.829Z level=INFO run=d943b140 message=loop session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA step=15
+timestamp=2026-08-17T06:20:26.830Z level=INFO run=d943b140 message="exiting loop" session.id=ses_ff1a1f019ffew7fVwMBxj0AzeA
+timestamp=2026-08-17T06:20:26.834Z level=INFO run=d943b140 message="disposing instance" directory=/Users/topi/proj/qwen3.8-bench/results/claude-sonnet-4.6-max/run-1
