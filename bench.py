@@ -188,6 +188,11 @@ def _finalise(steps: dict, messages: dict, session_ids: list[str]) -> dict:
     out = dict(chosen)
     out["total"] = out["input"] + out["output"] + out["reasoning"]
     out["billable_total"] = out["input"] + out["output"]
+    # Whether a re-read prompt prefix lands in `input` or in `cache_read` is a
+    # property of the serving stack, not of the model, so `total` is only
+    # comparable between labels served the same way. `processed` counts every
+    # token the model ran over either way.
+    out["processed"] = out["total"] + out["cache_read"]
     out["source"] = "step-finish" if chosen is steps else "message"
     out["message_total_crosscheck"] = messages["input"] + messages["output"] + messages["reasoning"]
     out["sessions"] = session_ids
@@ -551,7 +556,15 @@ def collect_summary() -> dict:
         times = [r["metrics"]["seconds"] for r in runs if "metrics" in r]
         tk = [r["metrics"]["tokens"] for r in runs if "metrics" in r]
         def mean(field):
-            vals = [t.get(field) for t in tk if t.get(field)]
+            # A run that burned zero tokens still happened; only a genuinely
+            # absent field is excluded.
+            vals = [t[field] for t in tk if t.get(field) is not None]
+            return round(sum(vals) / len(vals)) if vals else None
+
+        def mean_processed():
+            # Recomputed rather than read, so metrics written before `processed`
+            # existed still aggregate.
+            vals = [t.get("processed", t["total"] + t["cache_read"]) for t in tk]
             return round(sum(vals) / len(vals)) if vals else None
         models.append({
             "label": label_dir.name,
@@ -561,6 +574,8 @@ def collect_summary() -> dict:
             "min_score": min(scored) if scored else None,
             "max_score": max(scored) if scored else None,
             "mean_seconds": round(sum(times) / len(times)) if times else None,
+            "min_seconds": round(min(times)) if times else None,
+            "max_seconds": round(max(times)) if times else None,
             "mean_tokens": {
                 "input": mean("input"),
                 "output": mean("output"),
@@ -568,6 +583,7 @@ def collect_summary() -> dict:
                 "cache_read": mean("cache_read"),
                 "cache_write": mean("cache_write"),
                 "total": mean("total"),
+                "processed": mean_processed(),
             },
             "mean_cost_usd": round(sum(t["cost"] for t in tk) / len(tk), 4) if tk else None,
         })
@@ -578,36 +594,78 @@ def collect_summary() -> dict:
 GATHER_PROMPT = """You are updating the results section of the benchmark README.
 
 `results/summary.json` in this directory has every model's per-run scores,
-score spread, mean wall-clock seconds, and mean token usage, already sorted by
-mean score. Each run also has a full written review at the `review_path` given
-in the JSON. Read the reviews — the table is the least interesting part of your
-job.
+score spread, wall-clock seconds as mean/min/max, and mean token usage, already
+sorted by mean score. Each run also has a full written review at the
+`review_path` given in the JSON. Read the reviews — the table is the least
+interesting part of your job.
 
 Rewrite everything in `README.md` between the markers
 `{begin}` and `{end}`, leaving both markers and every line outside them exactly
 as they are. Produce:
 
-1. A ranking table: Model | Mean / 40 | Range | Runs | Mean time | Total tokens
-   | Reasoning tokens | Cost. Range is `low–high` across the runs, or `—` for a
-   single run. `mean_tokens.total` is input + output + reasoning; report
-   reasoning separately as well, since a model spending half its budget on
-   hidden reasoning is the interesting kind of expensive. A `null` is `n/a`,
-   never a guess, and a reasoning count of 0 means the provider does not report
-   it — say so rather than implying the model did not reason.
+1. A ranking table: Model | Score / 40 | Runs | Time | Total tokens | Tokens
+   processed | Cost.
+
+   Score and Time each carry their spread inline, as `mean (low–high)`:
+   `39.50 (39.0–40.0)` and `10m 59s (9m 02s–13m 23s)`. Drop the parenthetical
+   for a single run. Use `min_score`/`max_score` and `min_seconds`/`max_seconds`
+   as given — do not recompute them from the per-run entries. A `null` is `n/a`,
+   never a guess.
+
+   Times are given in seconds in the JSON; print them as `Xm YYs`, zero-padding
+   the seconds so the column aligns, and as plain `Ns` for anything under a
+   minute. Do the same anywhere else you quote a duration in prose, and round to
+   whole minutes there if the seconds do not matter.
+
+   The time spread is worth the width because it separates labels rather than
+   just decorating them: locally served models vary by 2–5x run to run where
+   hosted ones hold within 1.5x. If that shows in the data, say so under the
+   table. Do not give the token columns a spread too — every label's is
+   similar, and it mostly tracks the time spread anyway.
+
+   Both token columns matter and they are not interchangeable.
+   `mean_tokens.total` is input + output + reasoning and excludes cached reads,
+   so it is the marginal cost of a run — but whether a re-read prompt prefix is
+   billed as `input` or as `cache_read` depends on the serving stack, so `total`
+   is only comparable between labels served the same way. `mean_tokens.processed`
+   adds cached reads back in and is the column to use when comparing labels
+   across providers or across local quants. If any label has `cache_read` near
+   zero while others do not, say so under the table: its `total` is inflated
+   relative to theirs and the two columns will disagree wildly.
+
+   Do not add a reasoning-tokens column unless some label reports a non-zero
+   `mean_tokens.reasoning`. A zero there does not mean the model did not think;
+   these providers fold thinking into `output`, and you can see it by comparing
+   a thinking variant's output count against a no-think variant of the same
+   model. Say that rather than printing a column of `n/a`.
 
 2. A per-category table: one row per model, one column per rubric category,
    showing the mean for each. This is where the interesting differences live.
 
-3. **Notes** — a short paragraph per model. Say what it actually did: which
-   identity strategy it picked, whether suppression was per-channel or global,
-   where it put the sent-marker relative to delivery, what it left silent.
-   Cite the specific choice, not the score. If a model's three runs disagreed
-   substantially, that instability is the most important thing about it and
-   should lead its paragraph.
+3. **Notes** — an entry per model, in table order. Head it with the model name
+   and its per-run scores, high to low, followed by one sentence of framing. If
+   a model's runs disagreed substantially on the central design, that
+   instability is the most important thing about it and belongs in that
+   sentence. Then two bullets, `*Good.*` and `*Bad.*`, each a few sentences.
+
+   Good is for design choices that held up, not praise: which identity strategy
+   it picked, whether suppression was per-channel or global, where the
+   sent-marker sat relative to delivery, whether channel failures were isolated,
+   whether an existing database migrates. Say whether each was universal across
+   the runs or only some, and name the run numbers when they differ.
+
+   Bad is for concrete defects and omissions from the reviews' "What it missed"
+   and "Bugs" sections — a crash on legacy duplicates, a dry-run that consumes
+   state, an identity that re-sends on UTM rotation, an undocumented first-run
+   flood. Cite the specific choice and the specific failure, never the score.
+   Every label gets both bullets; if a label has little to put under Good, say
+   so plainly rather than inflating it.
 
 4. **Patterns** — three to six bullets across all models. Which decisions were
-   near-universal, which separated the top from the bottom, whether more tokens
-   or more time bought better judgment.
+   near-universal, which separated the top from the bottom, whether more time or
+   more money bought better judgment. Do not rank labels by tokens across
+   serving stacks; if you want to talk about token spend, compare labels that
+   share a stack, or compare a thinking variant against a no-think one.
 
 Be direct about weak results. Do not pad, do not congratulate, and do not
 describe a model's output as thoughtful unless the review quotes something
