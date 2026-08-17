@@ -96,6 +96,8 @@ a model, which is the fastest way to sanity-check scoring.
 
 ## Results
 
+The Qwen 3.8 variants were run locally with Asus Ascent GX10 (=DGX Spark) and the Claudes are from the cloud via Github Copilot.
+
 <!-- BENCH:RESULTS:BEGIN -->
 
 | Model | Score / 40 | Runs | Time | Tokens processed | Cost |
