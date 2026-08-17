@@ -63,10 +63,11 @@ live in the usual places and apply to every run equally.
 step-finish is the additive unit — one assistant turn contains many, so
 message-level totals undercount and are kept only as
 `message_total_crosscheck`. `total` is input + output + reasoning with cached
-reads reported but not added in, and `processed` adds them back. Keep both:
-whether a re-read prompt prefix is billed as `input` or as `cache_read` is a
-property of the serving stack, so `total` is comparable only between labels
-served the same way, while `processed` is comparable everywhere. Providers here
+reads reported but not added in, and `processed` adds them back. Both are
+recorded, but only `processed` is tabled below: whether a re-read prompt prefix
+is billed as `input` or as `cache_read` is a property of the serving stack, so
+`total` is comparable only between labels served the same way, while `processed`
+is comparable everywhere. Providers here
 report `reasoning` as 0 and fold thinking into `output`; `reasoning_chars`
 carries the exported thinking text when there is any, and was 0 for every run in
 the table below. Subagent work happens in child sessions, found
@@ -97,28 +98,29 @@ a model, which is the fastest way to sanity-check scoring.
 
 <!-- BENCH:RESULTS:BEGIN -->
 
-| Model | Score / 40 | Runs | Time | Total tokens | Tokens processed | Cost |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 50,883 | 2,345,748 | $2.91 |
-| claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 23,724 | 890,341 | $1.31 |
-| claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 48,504 | 2,127,746 | $1.12 |
-| qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | 640,063 | $0.00 |
-| qwen3.8-27b-4bit-reasoning-medium | 33.38 (27.5–37.5) | 4 | 22m 26s (13m 08s–26m 00s) | 40,008 | 747,066 | $0.00 |
-| qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 32,533 | 620,248 | $0.00 |
-| claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 13,542 | 574,062 | $0.33 |
-| claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 15,560 | 578,206 | $1.07 |
-| claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 19,887 | 514,191 | $0.59 |
-| github-copilot-claude-sonnet-4.6 | 21.88 (18.5–29.0) | 4 | 3m 01s (2m 41s–3m 14s) | 5,657 | 206,790 | $0.22 |
-| github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 2,694 | 69,349 | $0.18 |
-| qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | 338,515 | $0.00 |
+| Model | Score / 40 | Runs | Time | Tokens processed | Cost |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 2,345,748 | $2.91 |
+| claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 890,341 | $1.31 |
+| claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | $1.12 |
+| qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | $0.00 |
+| qwen3.8-27b-4bit-reasoning-medium | 33.38 (27.5–37.5) | 4 | 22m 26s (13m 08s–26m 00s) | 747,066 | $0.00 |
+| qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | $0.00 |
+| claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | $0.33 |
+| claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 578,206 | $1.07 |
+| claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 514,191 | $0.59 |
+| github-copilot-claude-sonnet-4.6 | 21.88 (18.5–29.0) | 4 | 3m 01s (2m 41s–3m 14s) | 206,790 | $0.22 |
+| github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | $0.18 |
+| qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | $0.00 |
 
-`total` is input + output + reasoning, excluding cached reads, so it is the
-marginal token count for a run; `processed` adds cached reads back and is the
-cross-stack context-volume comparison. Do not rank `total` across serving
-stacks. Both NVFP4 labels report zero cached reads while the others do not, so
-their entire re-read prefix is counted as input: their `total` is inflated and
-the two token columns disagree sharply. Cost is the pricing result, not a token
-ranking.
+`processed` is input + output + reasoning with cached reads added back — the
+whole context volume a run pushed through the model, which is the one token
+figure comparable across serving stacks. The marginal count that excludes
+cached reads is in each `_metrics.json` as `total`, but it is not tabled here:
+whether a re-read prompt prefix is billed as `input` or as `cache_read` is a
+property of the serving stack, and both NVFP4 labels report zero cached reads
+while the others do not, so the column would be comparing bookkeeping rather
+than work. Cost is the pricing result, not a token ranking.
 
 Run-time variance is material: the local labels span 2.0–4.6x from fastest to
 slowest run, while the hosted labels span 1.2–2.0x. The score spreads are not

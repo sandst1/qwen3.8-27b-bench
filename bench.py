@@ -603,8 +603,7 @@ Rewrite everything in `README.md` between the markers
 `{begin}` and `{end}`, leaving both markers and every line outside them exactly
 as they are. Produce:
 
-1. A ranking table: Model | Score / 40 | Runs | Time | Total tokens | Tokens
-   processed | Cost.
+1. A ranking table: Model | Score / 40 | Runs | Time | Tokens processed | Cost.
 
    Score and Time each carry their spread inline, as `mean (low–high)`:
    `39.50 (39.0–40.0)` and `10m 59s (9m 02s–13m 23s)`. Drop the parenthetical
@@ -620,18 +619,18 @@ as they are. Produce:
    The time spread is worth the width because it separates labels rather than
    just decorating them: locally served models vary by 2–5x run to run where
    hosted ones hold within 1.5x. If that shows in the data, say so under the
-   table. Do not give the token columns a spread too — every label's is
+   table. Do not give the token column a spread too — every label's is
    similar, and it mostly tracks the time spread anyway.
 
-   Both token columns matter and they are not interchangeable.
-   `mean_tokens.total` is input + output + reasoning and excludes cached reads,
-   so it is the marginal cost of a run — but whether a re-read prompt prefix is
-   billed as `input` or as `cache_read` depends on the serving stack, so `total`
-   is only comparable between labels served the same way. `mean_tokens.processed`
-   adds cached reads back in and is the column to use when comparing labels
-   across providers or across local quants. If any label has `cache_read` near
-   zero while others do not, say so under the table: its `total` is inflated
-   relative to theirs and the two columns will disagree wildly.
+   The token column is `mean_tokens.processed`, which adds cached reads back in
+   and so measures the whole context volume a run pushed through the model. That
+   is the only token figure comparable across providers and across local quants,
+   which is why it is the only one in the table. Do not add a column for
+   `mean_tokens.total`: it excludes cached reads, and whether a re-read prompt
+   prefix is billed as `input` or as `cache_read` depends on the serving stack,
+   so labels served differently cannot be compared on it. Under the table, note
+   that `total` is recorded per run but left out for that reason, and name the
+   labels reporting `cache_read` near zero while others do not.
 
    Do not add a reasoning-tokens column unless some label reports a non-zero
    `mean_tokens.reasoning`. A zero there does not mean the model did not think;
