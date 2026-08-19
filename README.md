@@ -96,26 +96,26 @@ a model, which is the fastest way to sanity-check scoring.
 
 ## Results
 
-The Qwen 3.8 variants were run locally with Asus Ascent GX10 (=DGX Spark) and the Claudes are from the cloud via Github Copilot.
+The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX Spark) and the Claudes are from the cloud via Github Copilot.
 
 <!-- BENCH:RESULTS:BEGIN -->
 
 | Model | Score / 40 | Runs | Time | Tokens processed | Cost |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 2,345,748 | $2.91 |
+| claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 890,341 | $1.31 |
 | claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | $1.12 |
 | qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | $0.00 |
 | qwen3.8-27b-4bit-reasoning-medium | 33.38 (27.5–37.5) | 4 | 22m 26s (13m 08s–26m 00s) | 747,066 | $0.00 |
 | qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | $0.00 |
+| claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | $0.33 |
 | claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 578,206 | $1.07 |
-| ornith-1.5-8bit | 27.62 (24.5–35.0) | 4 | 12m 00s (10m 17s–13m 01s) | 689,393 | $0.00 |
-| ornith-1.5-4bit | 25.88 (20.0–30.0) | 4 | 8m 52s (6m 52s–11m 59s) | 777,324 | $0.00 |
+| ornith-1.5-35b-a3b-8bit | 27.62 (24.5–35.0) | 4 | 12m 00s (10m 17s–13m 01s) | 689,393 | $0.00 |
+| ornith-1.5-35b-a3b-4bit | 25.88 (20.0–30.0) | 4 | 8m 52s (6m 52s–11m 59s) | 777,324 | $0.00 |
 | claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 514,191 | $0.59 |
 | github-copilot-claude-sonnet-4.6 | 21.88 (18.5–29.0) | 4 | 3m 01s (2m 41s–3m 14s) | 206,790 | $0.22 |
 | github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | $0.18 |
 | qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | $0.00 |
-| claude-opus-5 | n/a | 4 | n/a | n/a | n/a |
-| claude-sonnet-5 | n/a | 4 | n/a | n/a | n/a |
 
 `processed` is input + output + reasoning with cached reads added back — the
 whole context volume a run pushed through the model, which is the one token
@@ -139,19 +139,19 @@ averaged 23,374 output tokens versus 5,051 with no-think enabled.
 | Model | Identity | Ambiguity | Failure modes | Existing code | Code quality | Docs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | claude-opus-5-max | 9.63 | 8.00 | 8.00 | 5.88 | 4.00 | 4.00 |
+| claude-opus-5 | 9.63 | 8.00 | 8.00 | 6.00 | 3.88 | 3.75 |
 | claude-sonnet-5-max | 9.38 | 6.75 | 6.25 | 5.88 | 4.00 | 3.38 |
 | qwen3.8-27b-nvfp4-reasoning-medium | 9.13 | 6.25 | 6.63 | 5.88 | 3.75 | 3.25 |
 | qwen3.8-27b-4bit-reasoning-medium | 9.13 | 6.50 | 6.00 | 5.13 | 3.13 | 3.25 |
 | qwen3.8-27b-2bit-reasoning-medium | 8.38 | 5.00 | 5.88 | 6.00 | 3.75 | 3.25 |
+| claude-sonnet-5 | 8.13 | 5.88 | 5.63 | 5.13 | 3.63 | 2.88 |
 | claude-opus-4.6-max | 8.00 | 5.50 | 5.25 | 5.38 | 2.75 | 2.13 |
-| ornith-1.5-8bit | 8.63 | 4.38 | 3.50 | 4.75 | 3.25 | 3.13 |
-| ornith-1.5-4bit | 8.00 | 4.25 | 4.88 | 4.13 | 3.00 | 1.63 |
+| ornith-1.5-35b-a3b-8bit | 8.63 | 4.38 | 3.50 | 4.75 | 3.25 | 3.13 |
+| ornith-1.5-35b-a3b-4bit | 8.00 | 4.25 | 4.88 | 4.13 | 3.00 | 1.63 |
 | claude-sonnet-4.6-max | 7.25 | 3.25 | 2.25 | 3.88 | 3.38 | 3.00 |
 | github-copilot-claude-sonnet-4.6 | 6.25 | 3.75 | 4.25 | 3.25 | 2.75 | 1.63 |
 | github-copilot-claude-opus-4.6 | 5.00 | 3.38 | 5.00 | 3.88 | 2.38 | 1.63 |
 | qwen3.8-27b-nvfp4-nothink | 5.75 | 3.00 | 1.88 | 3.75 | 1.75 | 2.38 |
-| claude-opus-5 | n/a | n/a | n/a | n/a | n/a | n/a |
-| claude-sonnet-5 | n/a | n/a | n/a | n/a | n/a | n/a |
 
 ### Notes
 
@@ -174,6 +174,17 @@ central design.
   tracking-parameter allowlist is fixed, so a new provider parameter reopens
   the duplicate. Run-4 namespaces its ID key by source but not its URL key, and
   no run discusses overlapping cron invocations.
+
+**claude-opus-5** — 39.5 / 39.5 / 39.0 / 39.0. The tightest label in the table.
+
+- *Good.* Per-channel `deliveries` ledger, post-delivery marking, and an
+  explicit at-least-once argument in all four runs; two of them verified
+  failure isolation against a deliberately broken channel. Every README
+  documents the identity table and the per-channel rationale.
+- *Bad.* Run-1 claims dry-run records nothing while it writes the archive.
+  Run-2 ships no tests and leaves `store.count_sent()` dead. Run-3 documents no
+  reset procedure. Run-4's content-hash fallback is weak for link-less edited
+  items, and its 90-day retention is a constant with no knob.
 
 **claude-sonnet-5-max** — 39.5 / 38.5 / 33.5 / 31.0. Run-1 is a different
 design from the other three, and that is the whole spread.
@@ -231,6 +242,18 @@ is competitive with 4-bit's; its worst two are where the label loses the points.
   before delivery and drops items for good when a channel is down. No run names
   the first-run backfill, and runs 1, 3, and 4 give no reset procedure.
 
+**claude-sonnet-5** — 35.5 / 31.0 / 29.5 / 29.0. Run-4 breaks from the other
+three on both scope and timing.
+
+- *Good.* Runs 1–3 use a per-channel ledger marked after `channels.send()`
+  succeeds. Runs 1 and 4 choose identity per feed rather than forcing one global
+  field. All four migrate additively and keep dry-run out of the ledger.
+- *Bad.* Run-4 marks a global `notified` table in the feed loop before delivery,
+  so an uncaught `DeliveryError` drops items for the unreached channels and the
+  next run sends nothing. Run-3's link-only identity re-sends UTM-rotated
+  newsroom items. No run documents first-run backfill or a reset, and runs 1 and
+  3 leave the unconditional archive insert growing every tick.
+
 **claude-opus-4.6-max** — 33.0 / 30.0 / 27.5 / 25.5. Delivery semantics are
 right in every run; identity and migration are where it loses the points.
 
@@ -244,7 +267,7 @@ right in every run; identity and migration are where it loses the points.
   new README asserts the opposite. Runs 1–3 never touch the README at all,
   leaving the Layout table stale, and no run mentions the deploy-time backfill.
 
-**ornith-1.5-8bit** — 35.0 / 26.0 / 25.0 / 24.5. Run-2 is the only coherent
+**ornith-1.5-35b-a3b-8bit** — 35.0 / 26.0 / 25.0 / 24.5. Run-2 is the only coherent
 per-channel, post-send design; the other three use global or per-run state.
 
 - *Good.* Run-2 verifies per-feed identity, first-run behavior, dry-run
@@ -255,7 +278,7 @@ per-channel, post-send design; the other three use global or per-run state.
   after a later failure; run-4 marks unmatched items and duplicates earlier
   channel deliveries after a later failure.
 
-**ornith-1.5-4bit** — 30.0 / 29.5 / 24.0 / 20.0. Runs 2 and 4 improve to
+**ornith-1.5-35b-a3b-4bit** — 30.0 / 29.5 / 24.0 / 20.0. Runs 2 and 4 improve to
 per-channel post-send ledgers; runs 1 and 3 do not.
 
 - *Good.* Runs 2 and 4 use canonical-link per-channel state, post-success
@@ -325,18 +348,6 @@ codebase byte-for-byte identical to the original after 15m 29s.
   `DeliveryError` sends zero. Run-4's `raw_id or link` prefers the guid and
   re-sends edited wire items while its README says link wins. Runs 3 and 4 have
   no working migration for a legacy database.
-
-**claude-opus-5** — n/a. The current summary supplies no scores, metrics, or
-review files for these four runs.
-
-- *Good.* No reviewed implementation is available to support a positive design claim.
-- *Bad.* No reviewed implementation is available to identify concrete defects.
-
-**claude-sonnet-5** — n/a. The current summary supplies no scores, metrics, or
-review files for these four runs.
-
-- *Good.* No reviewed implementation is available to support a positive design claim.
-- *Bad.* No reviewed implementation is available to identify concrete defects.
 
 ### Patterns
 
