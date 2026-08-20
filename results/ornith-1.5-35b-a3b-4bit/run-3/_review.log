@@ -1,0 +1,1161 @@
+Good, dedup works for repeat runs of the same snapshot. Now switch to snapshot-b (edited items) to check the "edited item as new vs same" fork.
+Review written to `_review.md`. Summary of findings:
+
+- **Identity strategy (9/10)**: `store.normalize_link()` is a well-reasoned link-based key that correctly survives all three fixture hazards (rotating `utm_campaign`, missing `raw_id`, regenerated `guid`) — verified by running snapshot-a then snapshot-b through the same db.
+- **Ambiguity handling (3/8)**: global suppression bug confirmed — adding a new channel after items are archived means it never receives them, even though it's never gotten anything.
+- **Failure-mode reasoning (2/8)**: `record_items()` (unconditional insert, commits immediately) is now the dedup source but fires before any delivery is attempted — a crashed webhook send still permanently marks items as sent.
+- **Existing-code respect (2/6)**: the rubric's explicit warning about the unconditional insert applies directly here, and it manifests as a demonstrable bug — a single `--dry-run` permanently poisons future real delivery.
+- **Code quality (2.5/4)**: O(n²) set rebuild per item, unbounded duplicate row growth in `items`.
+- **Documentation (1.5/4)**: README completely untouched; only docstrings added.
+
+Total: 20/40, would not merge as-is — the identity logic is worth keeping but the dry-run/global-suppression/marking-order bugs need fixing first.
+timestamp=2026-08-19T20:19:25.410Z level=INFO run=406c99db message="creating instance" directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:19:25.411Z level=INFO run=406c99db message=fromDirectory directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:19:25.463Z level=INFO run=406c99db message=bootstrapping directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:19:25.468Z level=INFO run=406c99db message=loading path=/Users/topi/.config/opencode/config.json
+timestamp=2026-08-19T20:19:25.469Z level=INFO run=406c99db message=loading path=/Users/topi/.config/opencode/opencode.json
+timestamp=2026-08-19T20:19:25.473Z level=INFO run=406c99db message=loading path=/Users/topi/.config/opencode/opencode.jsonc
+timestamp=2026-08-19T20:19:25.527Z level=INFO run=406c99db message="all LSPs are disabled"
+timestamp=2026-08-19T20:19:25.528Z level=INFO run=406c99db message="all formatters are disabled"
+timestamp=2026-08-19T20:19:25.528Z level=INFO run=406c99db message=init
+timestamp=2026-08-19T20:19:25.609Z level=INFO run=406c99db message=created id=ses_fe45244d6ffeB6BnQs71OfJPty slug=proud-engine version=1.18.15 projectID=4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 path="" workspaceID=undefined parentID=undefined title="New session - 2026-08-19T20:19:25.609Z" agent=undefined model=undefined metadata=undefined permission="[{\"permission\":\"question\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_enter\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_exit\",\"pattern\":\"*\",\"action\":\"deny\"}]" cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1787170765609 time.updated=1787170765609
+timestamp=2026-08-19T20:19:25.618Z level=INFO run=406c99db message="event connected"
+timestamp=2026-08-19T20:19:26.470Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=0
+[0m
+> build · claude-sonnet-5
+[0m
+timestamp=2026-08-19T20:19:26.487Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=gpt-4.1 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=true agent=title mode=primary
+timestamp=2026-08-19T20:19:26.503Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=gpt-4.1
+timestamp=2026-08-19T20:19:26.615Z level=INFO run=406c99db message=initialized
+timestamp=2026-08-19T20:19:26.697Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:26.701Z level=INFO run=406c99db message="shell tool using shell" shell=/bin/zsh
+timestamp=2026-08-19T20:19:26.718Z level=INFO run=406c99db message=init count=8
+timestamp=2026-08-19T20:19:27.195Z level=INFO run=406c99db message="watcher backend" directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 platform=darwin backend=fs-events
+timestamp=2026-08-19T20:19:27.205Z level=INFO run=406c99db message="project copy refresh started" projectID=4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad
+timestamp=2026-08-19T20:19:27.415Z level=INFO run=406c99db message="project copy refresh done" projectID=4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad updated=[] removed="[\"/private/var/folders/gq/mspxlnv54rnfr1j54zsnt_9m0000gn/T/bench-ornith-1.5-4bit-3-mujbgmni/notify-digest\"]"
+timestamp=2026-08-19T20:19:27.442Z level=INFO run=406c99db message="booting location services" directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 workspaceID=undefined
+timestamp=2026-08-19T20:19:27.444Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01badbe88001xTOE9kRMh74o2z
+timestamp=2026-08-19T20:19:27.445Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:19:27.454Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:19:29.750Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md resolved=/Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md
+timestamp=2026-08-19T20:19:29.752Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/Users/topi/proj/qwen3.8-27b-bench/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:19:29.752Z level=INFO run=406c99db message=asking id=per_01badcb580015XHCFkukOTybtN permission=external_directory patterns="[\"/Users/topi/proj/qwen3.8-27b-bench/*\"]"
+timestamp=2026-08-19T20:19:29.754Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md
+# Methodology and rubric
+
+## Protocol
+
+- Every run starts from a pristine copy of `original/notify-digest/` in a fresh
+  temp directory. Nothing carries over between runs.
+- The agent receives the prompt in `TASK.md` verbatim. No clarification is
+  offered, and if the agent asks a question it gets no answer — the run
+  proceeds to completion or to the agent's own stopping point.
+- Each model is run **3 times**. Runs are scored independently; the model's
+  score is the mean, and the spread is reported, because agent-mode variance
+  on an underspecified prompt is large enough that a single run is noise.
+- Wall-clock duration, cost, and token usage — input, output, reasoning, and
+  cache read/write separately — are recorded per run and reported alongside the
+  score. They are not part of the score.
+- Runs are invoked with `--pure` and `OPENCODE_DISABLE_CLAUDE_CODE=1`, in a
+  temp directory containing nothing but the task, so no run can see another.
+- Reviewing is done by `github-copilot/gpt-5.6-sol` against the rubric below,
+  one review per run, with the reviewer given the original codebase, the
+  agent's output, and the rubric — but not the "why this task" notes, and not
+  the other runs.
+- Aggregation into `README.md` is done by `github-copilot/gpt-5.6-terra`.
+
+## Rubric — 40 points
+
+### 1. Identity strategy — 10
+
+Does the solution pick a workable notion of "the same item", and does it hold
+up against all three feeds?
+
+| Points | |
+| --- | --- |
+| 9–10 | Per-feed or fallback-chain identity that survives rotating `utm_campaign`, a missing `raw_id`, and a regenerated `guid`; the choice is stated with its failure modes |
+| 6–8 | A single strategy that works for most items; the feed it breaks on is unaddressed or unnoticed |
+| 3–5 | Naive `raw_id` or raw-link dedupe; breaks on at least two feeds in the fixtures |
+| 0–2 | Identity is incidental — dedupe by list position, run timestamp, or similar |
+
+### 2. Ambiguity handling — 8
+
+Are the forks *named*? Per-channel vs global suppression; edited item as new
+vs same; first-run backfill. Credit is for surfacing the decision in code,
+README, or output — an implementation that quietly picks well scores mid-band;
+one that picks well *and* says so scores top.
+
+| Points | |
+| --- | --- |
+| 7–8 | All three forks identified and resolved explicitly |
+| 4–6 | One or two named; the rest decided silently but correctly |
+| 2–3 | Decided silently, and at least one decision is wrong (typically global suppression) |
+| 0–1 | Forks not recognised |
+
+### 3. Failure-mode reasoning — 8
+
+Crash and retry semantics. Where is the sent-marker written relative to
+delivery, is it per channel, what happens when channel two fails after channel
+one succeeded, and is the at-least-once / at-most-once choice argued?
+
+| Points | |
+| --- | --- |
+| 7–8 | Per-channel marking, correct ordering for the stated guarantee, tradeoff argued |
+| 4–6 | Per-channel marking, sane ordering, no discussion |
+| 2–3 | Per-run marking, or a partial-failure window that loses or duplicates a whole batch |
+| 0–1 | No consideration of failure at all |
+
+### 4. Existing-code respect — 6
+
+Does it work with the codebase or bulldoze it? Reusing the `items` archive is
+fine *if* the unconditional insert is dealt with. Rewriting `feeds.py`
+wholesale, or breaking `--dry-run`, costs points here.
+
+### 5. Code quality — 4
+
+Readability, no dead code, no vestigial columns, schema migration handled for
+an existing database, sensible SQL.
+
+### 6. Documentation — 4
+
+Does the README explain the dedupe behaviour, how to reset it, and what
+happens on first run? A docstring alone caps this at 2.
+
+## Scoring notes
+
+- Deduct across categories for the same defect only where it genuinely bears
+  on both. A global-suppression bug is an ambiguity failure (2) and, if it
+  also drops items on retry, a failure-mode one (3).
+- Scope creep (adding a plugin system, a web UI, a scheduler) is penalised
+  under existing-code respect, not correctness — unless it breaks something.
+- Half points are allowed.
+[0m
+timestamp=2026-08-19T20:19:30.216Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff -rq /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 --exclude=.git" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mdiff -rq /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 --exclude=.git
+Only in /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3: _agent.log
+Only in /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3: _events.jsonl
+Only in /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3: _metrics.json
+Files /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/digest.py and /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py differ
+Files /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/store.py and /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py differ
+[0m
+timestamp=2026-08-19T20:19:30.270Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:30.299Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=1
+timestamp=2026-08-19T20:19:30.336Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:30.345Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01badcd7c001v8SFG3XPI6jpYk
+timestamp=2026-08-19T20:19:30.346Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:19:30.350Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:19:32.675Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:19:32.675Z level=INFO run=406c99db message="resolved path" arg=README.md resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/README.md
+timestamp=2026-08-19T20:19:32.676Z level=INFO run=406c99db message=evaluated permission=bash pattern="ls -la" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:19:32.676Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"---README---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:19:32.676Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat README.md" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:19:32.676Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"no readme\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 && ls -la && echo "---README---" && cat README.md 2>/dev/null || echo "no readme"
+total 424
+drwxr-xr-x  14 topi  staff     448 Aug 19 23:11 .
+drwxr-xr-x   6 topi  staff     192 Aug 19 23:14 ..
+drwxr-xr-x  13 topi  staff     416 Aug 19 23:05 .git
+-rw-r--r--   1 topi  staff     996 Aug 17 17:41 README.md
+-rw-r--r--   1 topi  staff   61502 Aug 19 23:11 _agent.log
+-rw-r--r--   1 topi  staff  117154 Aug 19 23:11 _events.jsonl
+-rw-r--r--   1 topi  staff     562 Aug 19 23:11 _metrics.json
+-rw-r--r--   1 topi  staff    1156 Aug 17 17:41 channels.py
+-rw-r--r--   1 topi  staff     578 Aug 17 17:41 config.example.toml
+-rw-r--r--   1 topi  staff    2421 Aug 19 23:10 digest.py
+-rw-r--r--   1 topi  staff    2461 Aug 17 17:41 feeds.py
+drwxr-xr-x   4 topi  staff     128 Aug 17 17:41 fixtures
+-rw-r--r--   1 topi  staff     511 Aug 17 17:41 render.py
+-rw-r--r--   1 topi  staff    1945 Aug 19 23:09 store.py
+---README---
+# notify-digest
+
+A small cron job that pulls a handful of feeds, filters the items per channel,
+and sends each channel a digest.
+
+## Running
+
+```sh
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3
+```
+
+`--dry-run` prints what would be sent instead of sending it.
+
+Requires Python 3.11+ (uses `tomllib`). No third-party dependencies.
+
+## Layout
+
+| File | Purpose |
+| --- | --- |
+| `digest.py` | CLI entry point, the per-run loop |
+| `feeds.py` | Fetching and normalising the three feed formats |
+| `store.py` | SQLite archive of everything seen |
+| `render.py` | Digest text |
+| `channels.py` | Delivery (stdout, webhook) |
+
+The `fixtures/` directory holds two snapshots of the feeds taken at different
+times, so you can work on this without network access. Point the config at
+`snapshot-a` or `snapshot-b`.
+
+## Deployment
+
+Runs from cron on the utility box:
+
+```
+*/15 * * * * cd /srv/notify-digest && python3 digest.py >> /var/log/digest.log 2>&1
+```
+[0m
+timestamp=2026-08-19T20:19:33.025Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff -u /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/digest.py /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mdiff -u /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/digest.py /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py
+--- /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/digest.py	2026-08-17 17:41:45
++++ /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py	2026-08-19 23:10:49
+@@ -30,6 +30,9 @@
+ 
+ 
+ def run_once(cfg, db, dry_run=False):
++    # Links already delivered on a previous run. Deliver each item only once.
++    already_sent = store.seen_links(db)
++
+     all_items = []
+     for feed_cfg in cfg["feeds"]:
+         try:
+@@ -40,11 +43,18 @@
+         store.record_items(db, feed_cfg["name"], items)
+         all_items.extend(items)
+ 
+-    all_items.sort(key=lambda i: i.get("published", ""), reverse=True)
++    fresh = []
++    for item in all_items:
++        key = store.normalize_link(item["link"])
++        if key in already_sent or key in {store.normalize_link(j["link"]) for j in fresh}:
++            continue
++        fresh.append(item)
+ 
++    fresh.sort(key=lambda i: i.get("published", ""), reverse=True)
++
+     sent = 0
+     for chan_cfg in cfg["channels"]:
+-        selected = [i for i in all_items if matches(i, chan_cfg)]
++        selected = [i for i in fresh if matches(i, chan_cfg)]
+         if not selected:
+             continue
+         body = render.digest(selected, chan_cfg)
+[0m
+timestamp=2026-08-19T20:19:33.077Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:33.110Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=2
+timestamp=2026-08-19T20:19:33.142Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:33.145Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01badd876001LDeIMhlpzcWMNc
+timestamp=2026-08-19T20:19:33.145Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:19:33.149Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:19:36.505Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff -u /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/store.py /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mdiff -u /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/store.py /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py
+--- /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/store.py	2026-08-17 17:41:45
++++ /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py	2026-08-19 23:09:03
+@@ -1,8 +1,8 @@
+ """SQLite persistence.
+ 
+-The `items` table is an archive of everything we have ever seen, mostly so
+-that we can answer "did this ever come through?" when someone asks. Nothing
+-reads it at the moment.
++The `items` table is an archive of everything we have ever seen. It doubles as
++the dedup log: `digest` delivers each item at most once, keyed on the item's
++link, by checking what is already in this table.
+ """
+ 
+ import sqlite3
+@@ -45,3 +45,23 @@
+ 
+ def count_items(conn):
+     return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
++
++
++def normalize_link(link):
++    """Stable identity key for an item, derived from its link.
++
++    The link is the one field every feed format shares and the least likely to
++    change. raw_id is unusable as a key: blogroll has none, and the generic
++    provider regenerates its guid whenever an item is edited. Stripping the
++    query string keeps tracking params (utm_campaign, and friends) from making
++    the same item look new.
++    """
++    return link.split("?", 1)[0].split("#", 1)[0]
++
++
++def seen_links(conn):
++    """Return the normalized links already archived from previous runs."""
++    return {
++        normalize_link(row["link"])
++        for row in conn.execute("SELECT link FROM items").fetchall()
++    }
+[0m
+timestamp=2026-08-19T20:19:37.149Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py
+timestamp=2026-08-19T20:19:37.149Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.py
+#!/usr/bin/env python3
+"""notify-digest — poll a few feeds, filter them, send digests to channels.
+
+Run from cron. See README.md.
+"""
+
+import argparse
+import sys
+import tomllib
+from pathlib import Path
+
+import channels
+import feeds
+import render
+import store
+
+
+def load_config(path):
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
+def matches(item, filt):
+    """A channel filter is a list of keywords; empty list means 'everything'."""
+    keywords = filt.get("keywords", [])
+    if not keywords:
+        return True
+    haystack = (item["title"] + " " + item.get("summary", "")).lower()
+    return any(k.lower() in haystack for k in keywords)
+
+
+def run_once(cfg, db, dry_run=False):
+    # Links already delivered on a previous run. Deliver each item only once.
+    already_sent = store.seen_links(db)
+
+    all_items = []
+    for feed_cfg in cfg["feeds"]:
+        try:
+            items = feeds.fetch(feed_cfg)
+        except feeds.FeedError as exc:
+            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+            continue
+        store.record_items(db, feed_cfg["name"], items)
+        all_items.extend(items)
+
+    fresh = []
+    for item in all_items:
+        key = store.normalize_link(item["link"])
+        if key in already_sent or key in {store.normalize_link(j["link"]) for j in fresh}:
+            continue
+        fresh.append(item)
+
+    fresh.sort(key=lambda i: i.get("published", ""), reverse=True)
+
+    sent = 0
+    for chan_cfg in cfg["channels"]:
+        selected = [i for i in fresh if matches(i, chan_cfg)]
+        if not selected:
+            continue
+        body = render.digest(selected, chan_cfg)
+        if dry_run:
+            print(f"--- would send to {chan_cfg['name']} ---")
+            print(body)
+            continue
+        channels.send(chan_cfg, body)
+        sent += len(selected)
+
+    return sent
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="digest")
+    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--db", default="digest.sqlite3")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args(argv)
+
+    cfg = load_config(args.config)
+    db = store.connect(args.db)
+    try:
+        sent = run_once(cfg, db, dry_run=args.dry_run)
+        print(f"sent {sent} items")
+    finally:
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+[0m
+timestamp=2026-08-19T20:19:37.694Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py
+timestamp=2026-08-19T20:19:37.694Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/store.py
+"""SQLite persistence.
+
+The `items` table is an archive of everything we have ever seen. It doubles as
+the dedup log: `digest` delivers each item at most once, keyed on the item's
+link, by checking what is already in this table.
+"""
+
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    raw_id      TEXT,
+    title       TEXT NOT NULL,
+    link        TEXT NOT NULL,
+    summary     TEXT,
+    published   TEXT,
+    first_seen  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
+"""
+
+
+def connect(path):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.commit()
+    return conn
+
+
+def record_items(conn, source, items):
+    conn.executemany(
+        "INSERT INTO items (source, raw_id, title, link, summary, published)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (source, i["raw_id"], i["title"], i["link"], i.get("summary"), i.get("published"))
+            for i in items
+        ],
+    )
+    conn.commit()
+
+
+def count_items(conn):
+    return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
+
+
+def normalize_link(link):
+    """Stable identity key for an item, derived from its link.
+
+    The link is the one field every feed format shares and the least likely to
+    change. raw_id is unusable as a key: blogroll has none, and the generic
+    provider regenerates its guid whenever an item is edited. Stripping the
+    query string keeps tracking params (utm_campaign, and friends) from making
+    the same item look new.
+    """
+    return link.split("?", 1)[0].split("#", 1)[0]
+
+
+def seen_links(conn):
+    """Return the normalized links already archived from previous runs."""
+    return {
+        normalize_link(row["link"])
+        for row in conn.execute("SELECT link FROM items").fetchall()
+    }
+[0m
+timestamp=2026-08-19T20:19:38.167Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/feeds.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/feeds.py
+timestamp=2026-08-19T20:19:38.167Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/feeds.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/feeds.py
+"""Feed loading.
+
+Feeds are JSON documents. Remote feeds are fetched over HTTP; local ones
+(used in development and in the fixtures/ directory) are read from disk.
+
+The three providers we currently pull from do not agree on much, so this
+module normalises them into a common item shape:
+
+    {"title": str, "link": str, "summary": str, "published": str,
+     "source": str, "raw_id": str | None}
+"""
+
+import json
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+class FeedError(Exception):
+    pass
+
+
+def _load(feed_cfg):
+    url = feed_cfg["url"]
+    if url.startswith("file://") or not url.startswith("http"):
+        path = Path(url.replace("file://", ""))
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise FeedError(str(exc)) from exc
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise FeedError(str(exc)) from exc
+
+
+def fetch(feed_cfg):
+    doc = _load(feed_cfg)
+    name = feed_cfg["name"]
+    fmt = feed_cfg.get("format", "generic")
+
+    if fmt == "newsroom":
+        rows = doc.get("entries", [])
+        return [
+            {
+                "title": r["headline"],
+                "link": r["url"],
+                "summary": r.get("standfirst", ""),
+                "published": r.get("published_at", ""),
+                "source": name,
+                "raw_id": str(r["entry_id"]),
+            }
+            for r in rows
+        ]
+
+    if fmt == "blogroll":
+        # No stable identifier of any kind in this one.
+        return [
+            {
+                "title": r["title"],
+                "link": r["permalink"],
+                "summary": r.get("excerpt", ""),
+                "published": r.get("date", ""),
+                "source": name,
+                "raw_id": None,
+            }
+            for r in doc.get("posts", [])
+        ]
+
+    # "generic": has a guid, but the provider regenerates it whenever an
+    # item is edited (typos, added tags, retitles).
+    return [
+        {
+            "title": r["title"],
+            "link": r["link"],
+            "summary": r.get("description", ""),
+            "published": r.get("pubDate", ""),
+            "source": name,
+            "raw_id": r.get("guid"),
+        }
+        for r in doc.get("items", [])
+    ]
+[0m
+timestamp=2026-08-19T20:19:38.277Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/channels.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/channels.py
+timestamp=2026-08-19T20:19:38.278Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/channels.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/channels.py
+"""Delivery channels.
+
+`webhook` posts the digest body as JSON. `stdout` just prints it, which is
+what we use locally. Delivery is best effort: if a channel is down we let the
+exception propagate and cron will pick us up again on the next tick.
+"""
+
+import json
+import urllib.error
+import urllib.request
+
+
+class DeliveryError(Exception):
+    pass
+
+
+def send(chan_cfg, body):
+    kind = chan_cfg.get("type", "stdout")
+
+    if kind == "stdout":
+        print(f"=== {chan_cfg['name']} ===")
+        print(body)
+        return
+
+    if kind == "webhook":
+        payload = json.dumps({"text": body}).encode()
+        req = urllib.request.Request(
+            chan_cfg["url"],
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status >= 300:
+                    raise DeliveryError(f"{chan_cfg['name']}: HTTP {resp.status}")
+        except urllib.error.URLError as exc:
+            raise DeliveryError(f"{chan_cfg['name']}: {exc}") from exc
+        return
+
+    raise DeliveryError(f"unknown channel type {kind!r}")
+[0m
+timestamp=2026-08-19T20:19:38.322Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:38.350Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=3
+timestamp=2026-08-19T20:19:38.384Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:19:38.387Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01badecef001pBbbSNySmIB6pp
+timestamp=2026-08-19T20:19:38.387Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:19:38.390Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:20:02.880Z level=INFO run=406c99db message=evaluated permission=bash pattern="ls /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:02.880Z level=INFO run=406c99db message=evaluated permission=bash pattern="find /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures -type f" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/
+find /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures -type f
+snapshot-a
+snapshot-b
+/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/blogroll.json
+/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/newsroom.json
+/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/wire.json
+/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/blogroll.json
+/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/newsroom.json
+/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/wire.json
+[0m
+timestamp=2026-08-19T20:20:02.929Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:02.956Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=4
+timestamp=2026-08-19T20:20:02.992Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:02.995Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01bae4d0d001W5FDJ4TeMXwLic
+timestamp=2026-08-19T20:20:02.995Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:20:02.998Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:20:06.826Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.example.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.example.toml
+timestamp=2026-08-19T20:20:06.827Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.example.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:06.827Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/wire.json /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/wire.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:06.827Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo ---" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:06.827Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/newsroom.json /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/newsroom.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:06.827Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/blogroll.json /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/blogroll.json" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.example.toml
+diff /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/wire.json /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/wire.json
+echo ---
+diff /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/newsroom.json /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/newsroom.json
+echo ---
+diff /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-a/blogroll.json /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/fixtures/snapshot-b/blogroll.json
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[feeds]]
+name = "blogroll"
+format = "blogroll"
+url = "file://fixtures/snapshot-a/blogroll.json"
+
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-a/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port", "levy", "fee"]
+
+[[channels]]
+name = "energy"
+type = "stdout"
+title = "Energy digest"
+keywords = ["tender", "grid", "offshore"]
+
+[[channels]]
+name = "everything"
+type = "stdout"
+title = "Firehose"
+keywords = []
+3c3
+<     {"guid": "wire-2026-08-14-0031", "title": "Port fee inquiry opened", "link": "https://wire.example/i/0031", "description": "Regulator confirms inquiry.", "pubDate": "2026-08-14T09:20:00Z"},
+---
+>     {"guid": "wire-2026-08-14-0031-r2", "title": "Port fee inquiry opened", "link": "https://wire.example/i/0031", "description": "Regulator confirms inquiry. Adds operator comment.", "pubDate": "2026-08-14T09:20:00Z"},
+---
+3,4c3,5
+<     {"entry_id": 84121, "headline": "Regulator opens inquiry into port fees", "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33", "standfirst": "Shipping operators say the levy is unlawful.", "published_at": "2026-08-14T09:12:00Z"},
+<     {"entry_id": 84118, "headline": "Grid operator delays offshore tender", "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33", "standfirst": "The auction slips to Q1.", "published_at": "2026-08-14T07:40:00Z"}
+---
+>     {"entry_id": 84130, "headline": "Union responds to port fee inquiry", "url": "https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34", "standfirst": "Dockworkers back the levy.", "published_at": "2026-08-14T13:55:00Z"},
+>     {"entry_id": 84121, "headline": "Regulator opens inquiry into port fees", "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w34", "standfirst": "Shipping operators say the levy is unlawful.", "published_at": "2026-08-14T09:12:00Z"},
+>     {"entry_id": 84118, "headline": "Grid operator delays offshore tender", "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w34", "standfirst": "The auction slips to Q1.", "published_at": "2026-08-14T07:40:00Z"}
+---
+3c3
+<     {"title": "Notes on port fee arithmetic", "permalink": "https://blog.example/port-fee-arithmetic", "excerpt": "Working through the levy numbers.", "date": "2026-08-14T11:05:00Z"},
+---
+>     {"title": "Notes on port fee arithmetic (updated)", "permalink": "https://blog.example/port-fee-arithmetic", "excerpt": "Working through the levy numbers. Now with the corrected table.", "date": "2026-08-14T11:05:00Z"},
+[0m
+timestamp=2026-08-19T20:20:06.884Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:06.910Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=5
+timestamp=2026-08-19T20:20:06.945Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:06.948Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01bae5c7f001kFRlp6TVMBZ1XZ
+timestamp=2026-08-19T20:20:06.948Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:20:06.952Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:20:11.868Z level=INFO run=406c99db message="resolved path" arg=/tmp resolved=/tmp
+timestamp=2026-08-19T20:20:11.871Z level=INFO run=406c99db message="resolved path" arg=digest_test resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test
+timestamp=2026-08-19T20:20:11.871Z level=INFO run=406c99db message="resolved path" arg=digest_test resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test
+timestamp=2026-08-19T20:20:11.871Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:20:11.871Z level=INFO run=406c99db message="resolved path" arg=digest_test/ resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message="resolved path" arg=digest_test resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message="resolved path" arg=_agent.log resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_agent.log
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message="resolved path" arg=_events.jsonl resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_events.jsonl
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message="resolved path" arg=_metrics.json resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_metrics.json
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message="resolved path" arg=config.example.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.example.toml
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.toml
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:20:11.872Z level=INFO run=406c99db message=asking id=per_01bae6fe0001rUCn6r3EmeGV0r permission=external_directory patterns="[\"/tmp/*\"]"
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="rm -rf digest_test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="mkdir digest_test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* digest_test/" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="rm -f _agent.log _events.jsonl _metrics.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="cp config.example.toml config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:11.873Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"=== run 2 (same snapshot-a again, simulating cron 15 min later) ===\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp && rm -rf digest_test && mkdir digest_test && cp -r /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* digest_test/ 2>/dev/null
+cd digest_test
+rm -f _agent.log _events.jsonl _metrics.json
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3
+echo "=== run 2 (same snapshot-a again, simulating cron 15 min later) ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+=== ops ===
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+=== energy ===
+Energy digest — 3 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+=== everything ===
+Firehose — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 12 items
+=== run 2 (same snapshot-a again, simulating cron 15 min later) ===
+sent 0 items
+[0m
+timestamp=2026-08-19T20:20:12.061Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:12.089Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=6
+timestamp=2026-08-19T20:20:12.159Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:12.161Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01bae70bb001IQGD59xJYlTVaK
+timestamp=2026-08-19T20:20:12.161Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:20:12.165Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:20:14.951Z level=INFO run=406c99db message="resolved path" arg=/tmp/digest_test resolved=/tmp/digest_test
+timestamp=2026-08-19T20:20:14.954Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/digest_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:20:14.954Z level=INFO run=406c99db message=asking id=per_01bae7bea001NHWhlXlKvP0c6c permission=external_directory patterns="[\"/tmp/digest_test/*\"]"
+timestamp=2026-08-19T20:20:14.955Z level=INFO run=406c99db message=evaluated permission=bash pattern="sed -i '' 's/snapshot-a/snapshot-b/g' config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:14.955Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"=== run 3 (snapshot-b, contains edits + 1 new item) ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:14.955Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/digest_test
+sed -i '' 's/snapshot-a/snapshot-b/g' config.toml
+echo "=== run 3 (snapshot-b, contains edits + 1 new item) ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+=== run 3 (snapshot-b, contains edits + 1 new item) ===
+=== ops ===
+Ops digest — 1 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+=== everything ===
+Firehose — 1 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+sent 2 items
+[0m
+timestamp=2026-08-19T20:20:15.064Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:15.097Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=7
+timestamp=2026-08-19T20:20:15.125Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:15.129Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01bae7c7a001lN7O6X4joVSEEu
+timestamp=2026-08-19T20:20:15.129Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:20:15.132Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:20:24.270Z level=INFO run=406c99db message="resolved path" arg=/tmp/digest_test resolved=/tmp/digest_test
+timestamp=2026-08-19T20:20:24.274Z level=INFO run=406c99db message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.toml
+timestamp=2026-08-19T20:20:24.274Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/digest_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:20:24.274Z level=INFO run=406c99db message=asking id=per_01baea052001gVdhHr7kQe9yqx permission=external_directory patterns="[\"/tmp/digest_test/*\"]"
+timestamp=2026-08-19T20:20:24.276Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:24.276Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"--- adding a new channel matching 'levy' that wasn't there before, after item already recorded ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:24.276Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat >> config.toml << 'EOF'\n\n[[channels]]\nname = \"compliance\"\ntype = \"stdout\"\ntitle = \"Compliance digest\"\nkeywords = [\"levy\"]\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:24.276Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/digest_test
+cat config.toml
+echo "--- adding a new channel matching 'levy' that wasn't there before, after item already recorded ---"
+cat >> config.toml << 'EOF'
+
+[[channels]]
+name = "compliance"
+type = "stdout"
+title = "Compliance digest"
+keywords = ["levy"]
+EOF
+python3 digest.py --config config.toml --db digest.sqlite3
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-b/newsroom.json"
+
+[[feeds]]
+name = "blogroll"
+format = "blogroll"
+url = "file://fixtures/snapshot-b/blogroll.json"
+
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-b/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port", "levy", "fee"]
+
+[[channels]]
+name = "energy"
+type = "stdout"
+title = "Energy digest"
+keywords = ["tender", "grid", "offshore"]
+
+[[channels]]
+name = "everything"
+type = "stdout"
+title = "Firehose"
+keywords = []
+--- adding a new channel matching 'levy' that wasn't there before, after item already recorded ---
+sent 0 items
+[0m
+timestamp=2026-08-19T20:20:24.390Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:24.418Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=8
+timestamp=2026-08-19T20:20:24.452Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:24.455Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01baea0e4001je0a3Y3QaGZ9hr
+timestamp=2026-08-19T20:20:24.456Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:20:24.460Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:20:25.639Z level=INFO run=406c99db message=cleanup prune=7.days
+timestamp=2026-08-19T20:20:35.054Z level=INFO run=406c99db message="resolved path" arg=/tmp resolved=/tmp
+timestamp=2026-08-19T20:20:35.057Z level=INFO run=406c99db message="resolved path" arg=digest_test2 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test2
+timestamp=2026-08-19T20:20:35.057Z level=INFO run=406c99db message="resolved path" arg=digest_test2 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test2
+timestamp=2026-08-19T20:20:35.057Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:20:35.057Z level=INFO run=406c99db message="resolved path" arg=digest_test2/ resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test2
+timestamp=2026-08-19T20:20:35.057Z level=INFO run=406c99db message="resolved path" arg=digest_test2 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test2
+timestamp=2026-08-19T20:20:35.057Z level=INFO run=406c99db message="resolved path" arg=_agent.log resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_agent.log
+timestamp=2026-08-19T20:20:35.058Z level=INFO run=406c99db message="resolved path" arg=_events.jsonl resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_events.jsonl
+timestamp=2026-08-19T20:20:35.058Z level=INFO run=406c99db message="resolved path" arg=_metrics.json resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_metrics.json
+timestamp=2026-08-19T20:20:35.058Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:20:35.058Z level=INFO run=406c99db message=asking id=per_01baeca72001XkYfSmWY4FizeV permission=external_directory patterns="[\"/tmp/*\"]"
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="rm -rf digest_test2" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="mkdir digest_test2" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* digest_test2/" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="rm -f _agent.log _events.jsonl _metrics.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="cat > config.toml << 'EOF'\n[[feeds]]\nname = \"newsroom\"\nformat = \"newsroom\"\nurl = \"file://fixtures/snapshot-a/newsroom.json\"\n\n[[channels]]\nname = \"broken\"\ntype = \"webhook\"\nurl = \"http://127.0.0.1:1/nope\"\nkeywords = []\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"exit code: $?\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"--- items table content ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:20:35.059Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 -c \"\nimport sqlite3\nc = sqlite3.connect('digest.sqlite3')\nc.row_factory = sqlite3.Row\nfor row in c.execute('select source, link from items'):\n    print(dict(row))\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp && rm -rf digest_test2 && mkdir digest_test2 && cp -r /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* digest_test2/ 2>/dev/null
+cd digest_test2
+rm -f _agent.log _events.jsonl _metrics.json
+cat > config.toml << 'EOF'
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[channels]]
+name = "broken"
+type = "webhook"
+url = "http://127.0.0.1:1/nope"
+keywords = []
+EOF
+python3 digest.py --config config.toml --db digest.sqlite3
+echo "exit code: $?"
+echo "--- items table content ---"
+python3 -c "
+import sqlite3
+c = sqlite3.connect('digest.sqlite3')
+c.row_factory = sqlite3.Row
+for row in c.execute('select source, link from items'):
+    print(dict(row))
+"
+Traceback (most recent call last):
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 1344, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/http/client.py", line 1338, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/http/client.py", line 1384, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/http/client.py", line 1333, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/http/client.py", line 1093, in _send_output
+    self.send(msg)
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/http/client.py", line 1037, in send
+    self.connect()
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/http/client.py", line 1003, in connect
+    self.sock = self._create_connection(
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/socket.py", line 865, in create_connection
+    raise exceptions[0]
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/socket.py", line 850, in create_connection
+    sock.connect(sa)
+ConnectionRefusedError: [Errno 61] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/digest_test2/channels.py", line 33, in send
+    with urllib.request.urlopen(req, timeout=10) as resp:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/topi/.pyenv/versions/3.12.11/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 61] Connection refused>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/digest_test2/digest.py", line 89, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/private/tmp/digest_test2/digest.py", line 81, in main
+    sent = run_once(cfg, db, dry_run=args.dry_run)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/digest_test2/digest.py", line 65, in run_once
+    channels.send(chan_cfg, body)
+  File "/private/tmp/digest_test2/channels.py", line 37, in send
+    raise DeliveryError(f"{chan_cfg['name']}: {exc}") from exc
+channels.DeliveryError: broken: <urlopen error [Errno 61] Connection refused>
+exit code: 1
+--- items table content ---
+{'source': 'newsroom', 'link': 'https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33'}
+{'source': 'newsroom', 'link': 'https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33'}
+[0m
+timestamp=2026-08-19T20:20:35.245Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:35.272Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=9
+timestamp=2026-08-19T20:20:35.303Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:20:35.306Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01baecb49001OaCDVj4OSE8aJq
+timestamp=2026-08-19T20:20:35.306Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:20:35.309Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:21:02.094Z level=INFO run=406c99db message="resolved path" arg=/tmp resolved=/tmp
+timestamp=2026-08-19T20:21:02.096Z level=INFO run=406c99db message="resolved path" arg=digest_test3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test3
+timestamp=2026-08-19T20:21:02.096Z level=INFO run=406c99db message="resolved path" arg=digest_test3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test3
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=digest_test3/ resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test3
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=digest_test3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest_test3
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=_agent.log resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_agent.log
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=_events.jsonl resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_events.jsonl
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=_metrics.json resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_metrics.json
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/digest.sqlite3
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=config.example.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.example.toml
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/config.toml
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:21:02.097Z level=INFO run=406c99db message=asking id=per_01baf3411001Dr5oXOey2cqd5p permission=external_directory patterns="[\"/tmp/*\"]"
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="rm -rf digest_test3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="mkdir digest_test3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* digest_test3/" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="rm -f _agent.log _events.jsonl _metrics.json digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="cp config.example.toml config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3 --dry-run" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"exit: $?\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:02.098Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 -c \"\nimport sqlite3\nc = sqlite3.connect('digest.sqlite3')\nc.row_factory = sqlite3.Row\nprint('rows after dry-run:', c.execute('select count(*) as n from items').fetchone()['n'])\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp && rm -rf digest_test3 && mkdir digest_test3 && cp -r /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/* digest_test3/ 2>/dev/null
+cd digest_test3
+rm -f _agent.log _events.jsonl _metrics.json digest.sqlite3
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3 --dry-run
+echo "exit: $?"
+python3 -c "
+import sqlite3
+c = sqlite3.connect('digest.sqlite3')
+c.row_factory = sqlite3.Row
+print('rows after dry-run:', c.execute('select count(*) as n from items').fetchone()['n'])
+"
+--- would send to ops ---
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+--- would send to energy ---
+Energy digest — 3 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+--- would send to everything ---
+Firehose — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 0 items
+exit: 0
+rows after dry-run: 6
+[0m
+timestamp=2026-08-19T20:21:02.247Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:02.281Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=10
+timestamp=2026-08-19T20:21:02.315Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:02.318Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01baf34ca001mIhXWvxlESykqV
+timestamp=2026-08-19T20:21:02.319Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:21:02.323Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:21:06.742Z level=INFO run=406c99db message="resolved path" arg=/tmp/digest_test3 resolved=/tmp/digest_test3
+timestamp=2026-08-19T20:21:06.746Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/digest_test3/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:21:06.746Z level=INFO run=406c99db message=asking id=per_01baf463a001clzvnTnGI0SeRk permission=external_directory patterns="[\"/tmp/digest_test3/*\"]"
+timestamp=2026-08-19T20:21:06.748Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"=== now run for real (non-dry-run) - should these be new to send? ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:06.748Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/digest_test3
+echo "=== now run for real (non-dry-run) - should these be new to send? ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+=== now run for real (non-dry-run) - should these be new to send? ===
+sent 0 items
+[0m
+timestamp=2026-08-19T20:21:06.857Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:06.885Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=11
+timestamp=2026-08-19T20:21:06.920Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:06.924Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01baf46c7001DNXlD6274vupsv
+timestamp=2026-08-19T20:21:06.925Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:21:06.933Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:21:15.118Z level=INFO run=406c99db message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/README.md /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/README.md" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:21:15.118Z level=INFO run=406c99db message=evaluated permission=bash pattern="echo \"exit: $?\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mdiff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/README.md /Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/README.md
+echo "exit: $?"
+exit: 0
+[0m
+timestamp=2026-08-19T20:21:15.171Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:15.197Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=12
+timestamp=2026-08-19T20:21:15.232Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:15.235Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01baf673e001vLmYVAPpts2dWg
+timestamp=2026-08-19T20:21:15.236Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:21:15.238Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:21:24.988Z level=INFO run=406c99db message="resolved path" arg=/tmp/digest_test resolved=/tmp/digest_test
+timestamp=2026-08-19T20:21:24.990Z level=INFO run=406c99db message=evaluated permission=external_directory pattern=/tmp/digest_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-19T20:21:24.990Z level=INFO run=406c99db message=asking id=per_01baf8d7e001X8fsg1q7RxzRwB permission=external_directory patterns="[\"/tmp/digest_test/*\"]"
+timestamp=2026-08-19T20:21:24.991Z level=INFO run=406c99db message=evaluated permission=bash pattern="python3 -c \"\nimport sqlite3\nc = sqlite3.connect('digest.sqlite3')\nc.row_factory = sqlite3.Row\nprint('total rows:', c.execute('select count(*) as n from items').fetchone()['n'])\nfor row in c.execute(\\\"select link, count(*) as n from items group by link having n>1\\\"):\n    print(dict(row))\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/digest_test
+python3 -c "
+import sqlite3
+c = sqlite3.connect('digest.sqlite3')
+c.row_factory = sqlite3.Row
+print('total rows:', c.execute('select count(*) as n from items').fetchone()['n'])
+for row in c.execute(\"select link, count(*) as n from items group by link having n>1\"):
+    print(dict(row))
+"
+total rows: 26
+{'link': 'https://blog.example/offshore-tender-history', 'n': 4}
+{'link': 'https://blog.example/port-fee-arithmetic', 'n': 4}
+{'link': 'https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33', 'n': 2}
+{'link': 'https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w34', 'n': 2}
+{'link': 'https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34', 'n': 2}
+{'link': 'https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33', 'n': 2}
+{'link': 'https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w34', 'n': 2}
+{'link': 'https://wire.example/i/0031', 'n': 4}
+{'link': 'https://wire.example/i/0918', 'n': 4}
+[0m
+timestamp=2026-08-19T20:21:25.051Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:25.081Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=13
+timestamp=2026-08-19T20:21:25.116Z level=INFO run=406c99db message=tracking hash=96930fff8072c4a9f2d28b6b522c18a0e4cfc412 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:21:25.118Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01baf8ddb001ok5fmzACwOibkD
+timestamp=2026-08-19T20:21:25.119Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:21:25.122Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:22:23.688Z level=INFO run=406c99db message=evaluated permission=edit pattern=_review.md action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-19T20:22:23.702Z level=INFO run=406c99db message=formatting file=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_review.md
+timestamp=2026-08-19T20:22:23.703Z level=INFO run=406c99db message="touching file" file=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3/_review.md
+[0m← [0mWrite _review.md
+Wrote file successfully.
+[0m
+timestamp=2026-08-19T20:22:23.768Z level=INFO run=406c99db message=tracking hash=ceb90f4cbd5a47b95d0d1412582abe5803ae3ee6 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:22:23.806Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=14
+timestamp=2026-08-19T20:22:23.842Z level=INFO run=406c99db message=tracking hash=ceb90f4cbd5a47b95d0d1412582abe5803ae3ee6 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:22:23.845Z level=INFO run=406c99db message=process session.id=ses_fe45244d6ffeB6BnQs71OfJPty messageID=msg_01bb0733f001j0Pdtm8hwkTOwl
+timestamp=2026-08-19T20:22:23.846Z level=INFO run=406c99db message=stream providerID=github-copilot modelID=claude-sonnet-5 session.id=ses_fe45244d6ffeB6BnQs71OfJPty small=false agent=build mode=primary
+timestamp=2026-08-19T20:22:23.850Z level=INFO run=406c99db message="llm runtime selected" llm.runtime=ai-sdk llm.provider=github-copilot llm.model=claude-sonnet-5
+timestamp=2026-08-19T20:22:30.240Z level=INFO run=406c99db message=tracking hash=ceb90f4cbd5a47b95d0d1412582abe5803ae3ee6 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3 git=/Users/topi/.local/share/opencode/snapshot/4ebebb0c45cf6cf8cc886c4a245e4b7448df6fad/780f67d3b36cf83a4bdfedd123dd11e80072d3d7
+timestamp=2026-08-19T20:22:30.270Z level=INFO run=406c99db message=loop session.id=ses_fe45244d6ffeB6BnQs71OfJPty step=15
+timestamp=2026-08-19T20:22:30.271Z level=INFO run=406c99db message="exiting loop" session.id=ses_fe45244d6ffeB6BnQs71OfJPty
+timestamp=2026-08-19T20:22:30.278Z level=INFO run=406c99db message="disposing instance" directory=/Users/topi/proj/qwen3.8-27b-bench/results/ornith-1.5-4bit/run-3
