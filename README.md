@@ -163,12 +163,12 @@ thing said about the label.
 **claude-opus-5-max** — 40.0 / 39.5 / 39.5 / 39.0. No run departs from the
 central design.
 
-- *Good.* Every run keyed a per-channel ledger on `(channel, source, identity)`
-  and marked only after that channel's send returned, isolating a failed
-  channel so the rest of the tick still ran. Identity followed the feed:
-  newsroom `entry_id`, blogroll permalink, wire link in preference to the
-  churning `guid`. Every run shipped both a migration and a documented
-  first-run escape hatch (`--mark-seen` or `--seed`).
+- *Good.* Every run used a per-channel ledger and marked only after that
+  channel's send returned, isolating a failed channel so the rest of the tick
+  still ran. Identity followed the feed: newsroom `entry_id`, blogroll
+  permalink, wire link in preference to the churning `guid`. Every run shipped
+  both a migration and a documented first-run escape hatch (`--mark-seen` or
+  `--seed`).
 - *Bad.* Dry-run leaks: run-1 creates an empty database and run-2 still writes
   archive rows, in both cases against wording that promises otherwise. The
   tracking-parameter allowlist is fixed, so a new provider parameter reopens
@@ -258,9 +258,9 @@ three on both scope and timing.
 right in every run; identity and migration are where it loses the points.
 
 - *Good.* All four runs scope suppression per channel, mark only after a
-  successful send, upgrade an existing database additively, and preserve
-  dry-run. Run-1's link-then-`raw_id` lookup survives all three fixture traps,
-  and run-2 batches the unsent check into a single query.
+  successful send, and preserve dry-run. Run-1's link-then-`raw_id` lookup
+  survives all three fixture traps, and run-2 batches the unsent check into a
+  single query.
 - *Bad.* Runs 3 and 4 add a unique index over `items(source, link)` that raises
   on any legacy database carrying duplicates from the old unconditional insert.
   Run-4 keys on the raw link and re-sends UTM-rotated newsroom items while its
@@ -293,7 +293,7 @@ over run; state handling never does.
 
 - *Good.* Run-2's `link OR raw_id` key, scoped per source, clears all three
   traps and is documented as a per-format table. Runs 3 and 4 strip tracking
-  parameters down to a canonical link. Three runs added test suites, and run-4's
+  parameters down to a canonical link. All four runs added test suites, and run-4's
   README covers the dedup key, dry-run behavior, and crash/retry.
 - *Bad.* Every run suppresses globally — there is no channel dimension anywhere
   in the label. Runs 1–3 record items in the fetch loop before delivery, so a
@@ -365,7 +365,7 @@ codebase byte-for-byte identical to the original after 15m 29s.
 - Existing-database migration separates prototypes from deployable changes.
   Adding unique indexes over legacy duplicates crashes multiple Opus 4.6,
   4-bit, and Copilot runs; additive delivery-ledger tables avoid that failure.
-- More time and money did not reliably buy better judgment. Opus 5 averaged
+- More time and money did not reliably buy better judgment. Opus 5 max averaged
   39.50 in 10m 59s for $2.91, while local reasoning labels took 13m 29s–22m 26s
   for 32.25–34.88; the slowest, 4-bit, averaged 33.38. Within the same NVFP4
   stack, medium reasoning beat no-think 34.88 to 19.50, though no-think includes
