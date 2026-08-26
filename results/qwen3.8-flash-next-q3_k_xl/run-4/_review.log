@@ -1,0 +1,1913 @@
+Now let's look at the fixture data to understand the identity challenges (utm_campaign rotation, missing raw_id, regenerated guid).
+Good, that matches the diffs I already saw. Now let's actually run the code against the fixtures to verify dedupe works as claimed.
+Dedup works within the same snapshot. Now let's test snapshot-b (rotated utm_campaign, edited blog post, regenerated guid, and new items) to verify the identity strategy holds.
+Now let's test partial-failure behavior explicitly — simulate a webhook channel that fails, verify crash/retry semantics.
+This confirms correct "at-least-once" semantics: the ops channel got its delivery recorded before the crash, and broken's failure is never recorded. Let's verify the retry recovers correctly and ops doesn't re-send.
+Migration onto an existing DB works cleanly (no ALTER needed, just an additive `CREATE TABLE IF NOT EXISTS`). Now let's check the "first-run backfill" story more carefully, and confirm `--dry-run` doesn't record deliveries (so re-running dry-run repeatedly still shows same items, which is correct).
+Let's verify the README's backfill script actually works as documented.
+The backfill script documented in the README works exactly as described. Now let's check the git diff stat once more and confirm nothing else was touched, then write the review.
+Everything checks out. Now writing the review.
+I reviewed the diff, read every changed file against the original, and ran the code against both fixture snapshots plus two synthetic scenarios (a simulated mid-batch channel failure, and a hand-built pre-existing database to check schema migration).
+
+**Findings, in short:**
+- The identity strategy (`source|scheme|netloc|path`, stripping query/fragment) correctly survives all three fixture pitfalls — rotating `utm_campaign`, missing `raw_id`, regenerated `guid` — which I confirmed by running snapshot-a then snapshot-b through a real (non-dry) send and checking exactly one genuinely-new item went out.
+- All three ambiguity forks (per-channel suppression, edited-as-same, first-run backfill) are named and resolved in both code and a new README section; the backfill script in the README actually runs and works.
+- Failure semantics are correct and argued: delivery is marked only after `channels.send()` succeeds, verified by forcing a webhook failure after a successful stdout send and confirming the succeeded channel doesn't repeat while the failed one retries.
+- The one real gap: the `items` archive table still gets an unconditional duplicate insert every single tick (verified 6→12 rows across two identical runs), which the rubric explicitly calls out and which the agent never addressed or discussed. Documentation also lacks a "how to reset dedup" note.
+
+Score: **37/40**, would merge as-is. Full review with quoted code, repro commands, and output is in `_review.md`.
+timestamp=2026-08-26T18:17:15.829Z level=INFO run=efaea305 message="creating instance" directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:17:15.830Z level=INFO run=efaea305 message=fromDirectory directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:17:15.856Z level=INFO run=efaea305 message=bootstrapping directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:17:15.861Z level=INFO run=efaea305 message=loading path=/Users/topi/.config/opencode/config.json
+timestamp=2026-08-26T18:17:15.861Z level=INFO run=efaea305 message=loading path=/Users/topi/.config/opencode/opencode.json
+timestamp=2026-08-26T18:17:15.863Z level=INFO run=efaea305 message=loading path=/Users/topi/.config/opencode/opencode.jsonc
+timestamp=2026-08-26T18:17:15.868Z level=INFO run=efaea305 message=loading path=/Users/topi/.opencode/opencode.json
+timestamp=2026-08-26T18:17:15.868Z level=INFO run=efaea305 message=loading path=/Users/topi/.opencode/opencode.jsonc
+timestamp=2026-08-26T18:17:15.893Z level=INFO run=efaea305 message="all LSPs are disabled"
+timestamp=2026-08-26T18:17:15.893Z level=INFO run=efaea305 message="all formatters are disabled"
+timestamp=2026-08-26T18:17:15.893Z level=INFO run=efaea305 message=init
+timestamp=2026-08-26T18:17:15.943Z level=INFO run=efaea305 message=created id=ses_fc0b59858ffegMpQBjEN6tLMwC slug=curious-harbor version=1.18.23 projectID=1dc6ba9b576ee59f7c60152a9e969023973dbd43 directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 path="" workspaceID=undefined parentID=undefined title="New session - 2026-08-26T18:17:15.943Z" agent=undefined model=undefined metadata=undefined permission="[{\"permission\":\"question\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_enter\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_exit\",\"pattern\":\"*\",\"action\":\"deny\"}]" cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1787768235943 time.updated=1787768235943
+timestamp=2026-08-26T18:17:15.948Z level=INFO run=efaea305 message="event connected"
+timestamp=2026-08-26T18:17:17.151Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=0
+[0m
+> build · anthropic/claude-sonnet-5
+[0m
+timestamp=2026-08-26T18:17:17.169Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=google/gemini-3.7-flash session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=true agent=title mode=primary
+timestamp=2026-08-26T18:17:17.175Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=google/gemini-3.7-flash
+timestamp=2026-08-26T18:17:17.217Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:17.220Z level=INFO run=efaea305 message="shell tool using shell" shell=/bin/zsh
+timestamp=2026-08-26T18:17:17.231Z level=INFO run=efaea305 message=init count=2
+timestamp=2026-08-26T18:17:17.605Z level=INFO run=efaea305 message="watcher backend" directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 platform=darwin backend=fs-events
+timestamp=2026-08-26T18:17:17.613Z level=INFO run=efaea305 message="project copy refresh started" projectID=1dc6ba9b576ee59f7c60152a9e969023973dbd43
+timestamp=2026-08-26T18:17:17.770Z level=INFO run=efaea305 message="project copy refresh done" projectID=1dc6ba9b576ee59f7c60152a9e969023973dbd43 updated=[] removed=[]
+timestamp=2026-08-26T18:17:17.778Z level=INFO run=efaea305 message="booting location services" directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 workspaceID=undefined
+timestamp=2026-08-26T18:17:17.779Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4a6c61001J6UcYH78XW42mW
+timestamp=2026-08-26T18:17:17.779Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:17.780Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:22.482Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md resolved=/Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md
+timestamp=2026-08-26T18:17:22.483Z level=INFO run=efaea305 message=evaluated permission=bash pattern="ls -la /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:22.486Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/Users/topi/proj/qwen3.8-27b-bench/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:17:22.486Z level=INFO run=efaea305 message=asking id=per_03f4a813600114Xf6PavzXg3wZ permission=external_directory patterns="[\"/Users/topi/proj/qwen3.8-27b-bench/*\"]"
+timestamp=2026-08-26T18:17:22.489Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls -la /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest
+total 56
+drwxr-xr-x  10 topi  staff   320 20 elokuuta    09:21 .
+drwxr-xr-x   3 topi  staff    96 20 elokuuta    09:21 ..
+-rw-r--r--   1 topi  staff  1156 20 elokuuta    09:21 channels.py
+-rw-r--r--   1 topi  staff   578 20 elokuuta    09:21 config.example.toml
+-rw-r--r--   1 topi  staff  2079 20 elokuuta    09:21 digest.py
+-rw-r--r--   1 topi  staff  2461 20 elokuuta    09:21 feeds.py
+drwxr-xr-x   4 topi  staff   128 20 elokuuta    09:21 fixtures
+-rw-r--r--   1 topi  staff   996 20 elokuuta    09:21 README.md
+-rw-r--r--   1 topi  staff   511 20 elokuuta    09:21 render.py
+-rw-r--r--   1 topi  staff  1204 20 elokuuta    09:21 store.py
+[0m
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md
+# Methodology and rubric
+
+## Protocol
+
+- Every run starts from a pristine copy of `original/notify-digest/` in a fresh
+  temp directory. Nothing carries over between runs.
+- The agent receives the prompt in `TASK.md` verbatim. No clarification is
+  offered, and if the agent asks a question it gets no answer — the run
+  proceeds to completion or to the agent's own stopping point.
+- Each model is run **3 times**. Runs are scored independently; the model's
+  score is the mean, and the spread is reported, because agent-mode variance
+  on an underspecified prompt is large enough that a single run is noise.
+- Wall-clock duration, cost, and token usage — input, output, reasoning, and
+  cache read/write separately — are recorded per run and reported alongside the
+  score. They are not part of the score.
+- Runs are invoked with `--pure` and `OPENCODE_DISABLE_CLAUDE_CODE=1`, in a
+  temp directory containing nothing but the task, so no run can see another.
+- Reviewing is done by `github-copilot/gpt-5.6-sol` against the rubric below,
+  one review per run, with the reviewer given the original codebase, the
+  agent's output, and the rubric — but not the "why this task" notes, and not
+  the other runs.
+- Aggregation into `README.md` is done by `github-copilot/gpt-5.6-terra`.
+
+## Rubric — 40 points
+
+### 1. Identity strategy — 10
+
+Does the solution pick a workable notion of "the same item", and does it hold
+up against all three feeds?
+
+| Points | |
+| --- | --- |
+| 9–10 | Per-feed or fallback-chain identity that survives rotating `utm_campaign`, a missing `raw_id`, and a regenerated `guid`; the choice is stated with its failure modes |
+| 6–8 | A single strategy that works for most items; the feed it breaks on is unaddressed or unnoticed |
+| 3–5 | Naive `raw_id` or raw-link dedupe; breaks on at least two feeds in the fixtures |
+| 0–2 | Identity is incidental — dedupe by list position, run timestamp, or similar |
+
+### 2. Ambiguity handling — 8
+
+Are the forks *named*? Per-channel vs global suppression; edited item as new
+vs same; first-run backfill. Credit is for surfacing the decision in code,
+README, or output — an implementation that quietly picks well scores mid-band;
+one that picks well *and* says so scores top.
+
+| Points | |
+| --- | --- |
+| 7–8 | All three forks identified and resolved explicitly |
+| 4–6 | One or two named; the rest decided silently but correctly |
+| 2–3 | Decided silently, and at least one decision is wrong (typically global suppression) |
+| 0–1 | Forks not recognised |
+
+### 3. Failure-mode reasoning — 8
+
+Crash and retry semantics. Where is the sent-marker written relative to
+delivery, is it per channel, what happens when channel two fails after channel
+one succeeded, and is the at-least-once / at-most-once choice argued?
+
+| Points | |
+| --- | --- |
+| 7–8 | Per-channel marking, correct ordering for the stated guarantee, tradeoff argued |
+| 4–6 | Per-channel marking, sane ordering, no discussion |
+| 2–3 | Per-run marking, or a partial-failure window that loses or duplicates a whole batch |
+| 0–1 | No consideration of failure at all |
+
+### 4. Existing-code respect — 6
+
+Does it work with the codebase or bulldoze it? Reusing the `items` archive is
+fine *if* the unconditional insert is dealt with. Rewriting `feeds.py`
+wholesale, or breaking `--dry-run`, costs points here.
+
+### 5. Code quality — 4
+
+Readability, no dead code, no vestigial columns, schema migration handled for
+an existing database, sensible SQL.
+
+### 6. Documentation — 4
+
+Does the README explain the dedupe behaviour, how to reset it, and what
+happens on first run? A docstring alone caps this at 2.
+
+## Scoring notes
+
+- Deduct across categories for the same defect only where it genuinely bears
+  on both. A global-suppression bug is an ambiguity failure (2) and, if it
+  also drops items on retry, a failure-mode one (3).
+- Scope creep (adding a plugin system, a web UI, a scheduler) is penalised
+  under existing-code respect, not correctness — unless it breaks something.
+- Half points are allowed.
+[0m
+timestamp=2026-08-26T18:17:23.011Z level=INFO run=efaea305 message=evaluated permission=bash pattern="ls -la /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls -la /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+total 288
+drwxr-xr-x   7 topi  staff    224 26 elokuuta    20:41 __pycache__
+-rw-r--r--   1 topi  staff  38683 26 elokuuta    20:22 _agent.log
+-rw-r--r--   1 topi  staff  71184 26 elokuuta    20:22 _events.jsonl
+-rw-r--r--   1 topi  staff    579 26 elokuuta    20:22 _metrics.json
+drwxr-xr-x  15 topi  staff    480 26 elokuuta    20:58 .
+drwxr-xr-x   6 topi  staff    192 26 elokuuta    20:22 ..
+drwxr-xr-x  13 topi  staff    416 26 elokuuta    20:48 .git
+-rw-r--r--   1 topi  staff   1156 20 elokuuta    09:21 channels.py
+-rw-r--r--   1 topi  staff    578 20 elokuuta    09:21 config.example.toml
+-rw-r--r--   1 topi  staff   2947 26 elokuuta    20:20 digest.py
+-rw-r--r--   1 topi  staff   3443 26 elokuuta    20:19 feeds.py
+drwxr-xr-x   4 topi  staff    128 20 elokuuta    09:21 fixtures
+-rw-r--r--   1 topi  staff   2688 26 elokuuta    20:21 README.md
+-rw-r--r--   1 topi  staff    511 20 elokuuta    09:21 render.py
+-rw-r--r--   1 topi  staff   2305 26 elokuuta    20:20 store.py
+[0m
+timestamp=2026-08-26T18:17:23.087Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:23.105Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=1
+timestamp=2026-08-26T18:17:23.126Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:23.128Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4a83a20018A9c5tQjjYBBJs
+timestamp=2026-08-26T18:17:23.128Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:23.129Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:27.893Z level=INFO run=efaea305 message="resolved path" arg="\"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/$f\"" resolved=undefined
+timestamp=2026-08-26T18:17:27.893Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== $f ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:27.893Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat \"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/$f\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:27.893Z level=INFO run=efaea305 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:27.901Z level=INFO run=efaea305 message=evaluated permission=bash pattern="ls -la /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:27.901Z level=INFO run=efaea305 message=evaluated permission=bash pattern="find /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures -type f" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls -la /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures; find /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures -type f
+total 0
+drwxr-xr-x   4 topi  staff  128 20 elokuuta    09:21 .
+drwxr-xr-x  10 topi  staff  320 20 elokuuta    09:21 ..
+drwxr-xr-x   5 topi  staff  160 20 elokuuta    09:21 snapshot-a
+drwxr-xr-x   5 topi  staff  160 20 elokuuta    09:21 snapshot-b
+/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-b/blogroll.json
+/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-b/newsroom.json
+/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-b/wire.json
+/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-a/blogroll.json
+/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-a/newsroom.json
+/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-a/wire.json
+[0m
+[0m$ [0mfor f in digest.py feeds.py store.py channels.py render.py README.md config.example.toml; do echo "=== $f ==="; cat "/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/$f"; echo; done
+=== digest.py ===
+#!/usr/bin/env python3
+"""notify-digest — poll a few feeds, filter them, send digests to channels.
+
+Run from cron. See README.md.
+"""
+
+import argparse
+import sys
+import tomllib
+from pathlib import Path
+
+import channels
+import feeds
+import render
+import store
+
+
+def load_config(path):
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
+def matches(item, filt):
+    """A channel filter is a list of keywords; empty list means 'everything'."""
+    keywords = filt.get("keywords", [])
+    if not keywords:
+        return True
+    haystack = (item["title"] + " " + item.get("summary", "")).lower()
+    return any(k.lower() in haystack for k in keywords)
+
+
+def run_once(cfg, db, dry_run=False):
+    all_items = []
+    for feed_cfg in cfg["feeds"]:
+        try:
+            items = feeds.fetch(feed_cfg)
+        except feeds.FeedError as exc:
+            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+            continue
+        store.record_items(db, feed_cfg["name"], items)
+        all_items.extend(items)
+
+    all_items.sort(key=lambda i: i.get("published", ""), reverse=True)
+
+    sent = 0
+    for chan_cfg in cfg["channels"]:
+        selected = [i for i in all_items if matches(i, chan_cfg)]
+        if not selected:
+            continue
+        body = render.digest(selected, chan_cfg)
+        if dry_run:
+            print(f"--- would send to {chan_cfg['name']} ---")
+            print(body)
+            continue
+        channels.send(chan_cfg, body)
+        sent += len(selected)
+
+    return sent
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="digest")
+    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--db", default="digest.sqlite3")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args(argv)
+
+    cfg = load_config(args.config)
+    db = store.connect(args.db)
+    try:
+        sent = run_once(cfg, db, dry_run=args.dry_run)
+        print(f"sent {sent} items")
+    finally:
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+=== feeds.py ===
+"""Feed loading.
+
+Feeds are JSON documents. Remote feeds are fetched over HTTP; local ones
+(used in development and in the fixtures/ directory) are read from disk.
+
+The three providers we currently pull from do not agree on much, so this
+module normalises them into a common item shape:
+
+    {"title": str, "link": str, "summary": str, "published": str,
+     "source": str, "raw_id": str | None}
+"""
+
+import json
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+class FeedError(Exception):
+    pass
+
+
+def _load(feed_cfg):
+    url = feed_cfg["url"]
+    if url.startswith("file://") or not url.startswith("http"):
+        path = Path(url.replace("file://", ""))
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise FeedError(str(exc)) from exc
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise FeedError(str(exc)) from exc
+
+
+def fetch(feed_cfg):
+    doc = _load(feed_cfg)
+    name = feed_cfg["name"]
+    fmt = feed_cfg.get("format", "generic")
+
+    if fmt == "newsroom":
+        rows = doc.get("entries", [])
+        return [
+            {
+                "title": r["headline"],
+                "link": r["url"],
+                "summary": r.get("standfirst", ""),
+                "published": r.get("published_at", ""),
+                "source": name,
+                "raw_id": str(r["entry_id"]),
+            }
+            for r in rows
+        ]
+
+    if fmt == "blogroll":
+        # No stable identifier of any kind in this one.
+        return [
+            {
+                "title": r["title"],
+                "link": r["permalink"],
+                "summary": r.get("excerpt", ""),
+                "published": r.get("date", ""),
+                "source": name,
+                "raw_id": None,
+            }
+            for r in doc.get("posts", [])
+        ]
+
+    # "generic": has a guid, but the provider regenerates it whenever an
+    # item is edited (typos, added tags, retitles).
+    return [
+        {
+            "title": r["title"],
+            "link": r["link"],
+            "summary": r.get("description", ""),
+            "published": r.get("pubDate", ""),
+            "source": name,
+            "raw_id": r.get("guid"),
+        }
+        for r in doc.get("items", [])
+    ]
+
+=== store.py ===
+"""SQLite persistence.
+
+The `items` table is an archive of everything we have ever seen, mostly so
+that we can answer "did this ever come through?" when someone asks. Nothing
+reads it at the moment.
+"""
+
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    raw_id      TEXT,
+    title       TEXT NOT NULL,
+    link        TEXT NOT NULL,
+    summary     TEXT,
+    published   TEXT,
+    first_seen  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
+"""
+
+
+def connect(path):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.commit()
+    return conn
+
+
+def record_items(conn, source, items):
+    conn.executemany(
+        "INSERT INTO items (source, raw_id, title, link, summary, published)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (source, i["raw_id"], i["title"], i["link"], i.get("summary"), i.get("published"))
+            for i in items
+        ],
+    )
+    conn.commit()
+
+
+def count_items(conn):
+    return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
+
+=== channels.py ===
+"""Delivery channels.
+
+`webhook` posts the digest body as JSON. `stdout` just prints it, which is
+what we use locally. Delivery is best effort: if a channel is down we let the
+exception propagate and cron will pick us up again on the next tick.
+"""
+
+import json
+import urllib.error
+import urllib.request
+
+
+class DeliveryError(Exception):
+    pass
+
+
+def send(chan_cfg, body):
+    kind = chan_cfg.get("type", "stdout")
+
+    if kind == "stdout":
+        print(f"=== {chan_cfg['name']} ===")
+        print(body)
+        return
+
+    if kind == "webhook":
+        payload = json.dumps({"text": body}).encode()
+        req = urllib.request.Request(
+            chan_cfg["url"],
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status >= 300:
+                    raise DeliveryError(f"{chan_cfg['name']}: HTTP {resp.status}")
+        except urllib.error.URLError as exc:
+            raise DeliveryError(f"{chan_cfg['name']}: {exc}") from exc
+        return
+
+    raise DeliveryError(f"unknown channel type {kind!r}")
+
+=== render.py ===
+"""Digest rendering."""
+
+import textwrap
+
+
+def digest(items, chan_cfg):
+    lines = [f"{chan_cfg.get('title', 'Digest')} — {len(items)} item(s)", ""]
+    for item in items:
+        lines.append(f"* {item['title']}  [{item['source']}]")
+        summary = (item.get("summary") or "").strip()
+        if summary:
+            lines.extend(textwrap.wrap(summary, width=76, initial_indent="  ", subsequent_indent="  "))
+        lines.append(f"  {item['link']}")
+        lines.append("")
+    return "\n".join(lines)
+
+=== README.md ===
+# notify-digest
+
+A small cron job that pulls a handful of feeds, filters the items per channel,
+and sends each channel a digest.
+
+## Running
+
+```sh
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3
+```
+
+`--dry-run` prints what would be sent instead of sending it.
+
+Requires Python 3.11+ (uses `tomllib`). No third-party dependencies.
+
+## Layout
+
+| File | Purpose |
+| --- | --- |
+| `digest.py` | CLI entry point, the per-run loop |
+| `feeds.py` | Fetching and normalising the three feed formats |
+| `store.py` | SQLite archive of everything seen |
+| `render.py` | Digest text |
+| `channels.py` | Delivery (stdout, webhook) |
+
+The `fixtures/` directory holds two snapshots of the feeds taken at different
+times, so you can work on this without network access. Point the config at
+`snapshot-a` or `snapshot-b`.
+
+## Deployment
+
+Runs from cron on the utility box:
+
+```
+*/15 * * * * cd /srv/notify-digest && python3 digest.py >> /var/log/digest.log 2>&1
+```
+
+=== config.example.toml ===
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[feeds]]
+name = "blogroll"
+format = "blogroll"
+url = "file://fixtures/snapshot-a/blogroll.json"
+
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-a/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port", "levy", "fee"]
+
+[[channels]]
+name = "energy"
+type = "stdout"
+title = "Energy digest"
+keywords = ["tender", "grid", "offshore"]
+
+[[channels]]
+name = "everything"
+type = "stdout"
+title = "Firehose"
+keywords = []
+[0m
+timestamp=2026-08-26T18:17:27.946Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:27.963Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=2
+timestamp=2026-08-26T18:17:27.981Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:27.982Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4a969c001gdF13PBv7rwisN
+timestamp=2026-08-26T18:17:27.982Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:27.983Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:31.558Z level=INFO run=efaea305 message="resolved path" arg="\"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-a/$f.json\"" resolved=undefined
+timestamp=2026-08-26T18:17:31.559Z level=INFO run=efaea305 message="resolved path" arg="\"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-b/$f.json\"" resolved=undefined
+timestamp=2026-08-26T18:17:31.559Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== snapshot-a/$f ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:31.559Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat \"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-a/$f.json\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:31.559Z level=INFO run=efaea305 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:31.559Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== snapshot-b/$f ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:31.559Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat \"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-b/$f.json\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mfor f in newsroom blogroll wire; do echo "=== snapshot-a/$f ==="; cat "/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-a/$f.json"; echo; echo "=== snapshot-b/$f ==="; cat "/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/fixtures/snapshot-b/$f.json"; echo; done
+=== snapshot-a/newsroom ===
+{
+  "entries": [
+    {"entry_id": 84121, "headline": "Regulator opens inquiry into port fees", "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33", "standfirst": "Shipping operators say the levy is unlawful.", "published_at": "2026-08-14T09:12:00Z"},
+    {"entry_id": 84118, "headline": "Grid operator delays offshore tender", "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33", "standfirst": "The auction slips to Q1.", "published_at": "2026-08-14T07:40:00Z"}
+  ]
+}
+
+=== snapshot-b/newsroom ===
+{
+  "entries": [
+    {"entry_id": 84130, "headline": "Union responds to port fee inquiry", "url": "https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34", "standfirst": "Dockworkers back the levy.", "published_at": "2026-08-14T13:55:00Z"},
+    {"entry_id": 84121, "headline": "Regulator opens inquiry into port fees", "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w34", "standfirst": "Shipping operators say the levy is unlawful.", "published_at": "2026-08-14T09:12:00Z"},
+    {"entry_id": 84118, "headline": "Grid operator delays offshore tender", "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w34", "standfirst": "The auction slips to Q1.", "published_at": "2026-08-14T07:40:00Z"}
+  ]
+}
+
+=== snapshot-a/blogroll ===
+{
+  "posts": [
+    {"title": "Notes on port fee arithmetic", "permalink": "https://blog.example/port-fee-arithmetic", "excerpt": "Working through the levy numbers.", "date": "2026-08-14T11:05:00Z"},
+    {"title": "A short history of offshore tenders", "permalink": "https://blog.example/offshore-tender-history", "excerpt": "How we got here.", "date": "2026-08-13T16:20:00Z"}
+  ]
+}
+
+=== snapshot-b/blogroll ===
+{
+  "posts": [
+    {"title": "Notes on port fee arithmetic (updated)", "permalink": "https://blog.example/port-fee-arithmetic", "excerpt": "Working through the levy numbers. Now with the corrected table.", "date": "2026-08-14T11:05:00Z"},
+    {"title": "A short history of offshore tenders", "permalink": "https://blog.example/offshore-tender-history", "excerpt": "How we got here.", "date": "2026-08-13T16:20:00Z"}
+  ]
+}
+
+=== snapshot-a/wire ===
+{
+  "items": [
+    {"guid": "wire-2026-08-14-0031", "title": "Port fee inquiry opened", "link": "https://wire.example/i/0031", "description": "Regulator confirms inquiry.", "pubDate": "2026-08-14T09:20:00Z"},
+    {"guid": "wire-2026-08-13-0918", "title": "Tender timetable under review", "link": "https://wire.example/i/0918", "description": "Grid operator statement.", "pubDate": "2026-08-13T18:02:00Z"}
+  ]
+}
+
+=== snapshot-b/wire ===
+{
+  "items": [
+    {"guid": "wire-2026-08-14-0031-r2", "title": "Port fee inquiry opened", "link": "https://wire.example/i/0031", "description": "Regulator confirms inquiry. Adds operator comment.", "pubDate": "2026-08-14T09:20:00Z"},
+    {"guid": "wire-2026-08-13-0918", "title": "Tender timetable under review", "link": "https://wire.example/i/0918", "description": "Grid operator statement.", "pubDate": "2026-08-13T18:02:00Z"}
+  ]
+}
+[0m
+timestamp=2026-08-26T18:17:31.605Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:31.622Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=3
+timestamp=2026-08-26T18:17:31.639Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:31.641Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4aa4e6001IZH4MoRYWEEn6g
+timestamp=2026-08-26T18:17:31.641Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:31.642Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:36.700Z level=INFO run=efaea305 message="resolved path" arg="\"/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/$f\"" resolved=undefined
+timestamp=2026-08-26T18:17:36.701Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== $f ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:36.701Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat \"/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/$f\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:36.701Z level=INFO run=efaea305 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+[0m$ [0mfor f in digest.py feeds.py store.py README.md; do echo "=== $f ==="; cat "/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/$f"; echo; done
+=== digest.py ===
+#!/usr/bin/env python3
+"""notify-digest — poll a few feeds, filter them, send digests to channels.
+
+Run from cron. See README.md.
+"""
+
+import argparse
+import sys
+import tomllib
+from pathlib import Path
+
+import channels
+import feeds
+import render
+import store
+
+
+def load_config(path):
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
+def matches(item, filt):
+    """A channel filter is a list of keywords; empty list means 'everything'."""
+    keywords = filt.get("keywords", [])
+    if not keywords:
+        return True
+    haystack = (item["title"] + " " + item.get("summary", "")).lower()
+    return any(k.lower() in haystack for k in keywords)
+
+
+def run_once(cfg, db, dry_run=False):
+    """One cron tick: fetch, archive, then send each channel only the items
+    it has not already received (see store.deliveries / feeds.item_key).
+
+    Deliveries are recorded after each successful send. If a send fails the
+    exception propagates (channels.py), nothing is recorded for that channel
+    and the next tick retries it; channels that already succeeded will not
+    re-send.
+    """
+    fetched = []
+    seen = set()  # guard against a feed listing the same item twice
+    for feed_cfg in cfg["feeds"]:
+        try:
+            items = feeds.fetch(feed_cfg)
+        except feeds.FeedError as exc:
+            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+            continue
+        store.record_items(db, feed_cfg["name"], items)
+        for item in items:
+            key = feeds.item_key(item)
+            if key not in seen:
+                seen.add(key)
+                fetched.append((key, item))
+
+    fetched.sort(key=lambda ki: ki[1].get("published", ""), reverse=True)
+
+    sent = 0
+    for chan_cfg in cfg["channels"]:
+        delivered = store.delivered_keys(db, chan_cfg["name"])
+        selected = [
+            (key, item)
+            for key, item in fetched
+            if key not in delivered and matches(item, chan_cfg)
+        ]
+        if not selected:
+            continue
+        body = render.digest([item for _, item in selected], chan_cfg)
+        if dry_run:
+            print(f"--- would send to {chan_cfg['name']} ---")
+            print(body)
+            continue
+        channels.send(chan_cfg, body)
+        store.record_deliveries(db, chan_cfg["name"], [key for key, _ in selected])
+        sent += len(selected)
+
+    return sent
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="digest")
+    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--db", default="digest.sqlite3")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args(argv)
+
+    cfg = load_config(args.config)
+    db = store.connect(args.db)
+    try:
+        sent = run_once(cfg, db, dry_run=args.dry_run)
+        print(f"sent {sent} items")
+    finally:
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+=== feeds.py ===
+"""Feed loading.
+
+Feeds are JSON documents. Remote feeds are fetched over HTTP; local ones
+(used in development and in the fixtures/ directory) are read from disk.
+
+The three providers we currently pull from do not agree on much, so this
+module normalises them into a common item shape:
+
+    {"title": str, "link": str, "summary": str, "published": str,
+     "source": str, "raw_id": str | None}
+"""
+
+import json
+import urllib.error
+import urllib.request
+from pathlib import Path
+from urllib.parse import urlsplit
+
+
+class FeedError(Exception):
+    pass
+
+
+def item_key(item):
+    """Stable identity of an item, used to avoid re-sending it. See README.
+
+    Deliberately NOT raw_id:
+
+    - blogroll has no id at all (raw_id is None),
+    - the generic provider regenerates its guid whenever an item is edited,
+      so an edited story would look brand new and be re-sent,
+    - newsroom ids are stable, but one rule for all providers is simpler.
+
+    The URL path is the one field every provider keeps stable. We drop the
+    query string and fragment because the newsroom feed appends rotating
+    campaign parameters (?utm_campaign=w34) that would otherwise make the
+    same story look new every week. None of our three providers
+    distinguishes items by query string; if one ever does, revisit this.
+    """
+    parts = urlsplit((item.get("link") or "").strip())
+    path = parts.path.rstrip("/").lower()
+    return f"{item.get('source', '')}|{parts.scheme.lower()}|{parts.netloc.lower()}|{path}"
+
+
+def _load(feed_cfg):
+    url = feed_cfg["url"]
+    if url.startswith("file://") or not url.startswith("http"):
+        path = Path(url.replace("file://", ""))
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise FeedError(str(exc)) from exc
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise FeedError(str(exc)) from exc
+
+
+def fetch(feed_cfg):
+    doc = _load(feed_cfg)
+    name = feed_cfg["name"]
+    fmt = feed_cfg.get("format", "generic")
+
+    if fmt == "newsroom":
+        rows = doc.get("entries", [])
+        return [
+            {
+                "title": r["headline"],
+                "link": r["url"],
+                "summary": r.get("standfirst", ""),
+                "published": r.get("published_at", ""),
+                "source": name,
+                "raw_id": str(r["entry_id"]),
+            }
+            for r in rows
+        ]
+
+    if fmt == "blogroll":
+        # No stable identifier of any kind in this one.
+        return [
+            {
+                "title": r["title"],
+                "link": r["permalink"],
+                "summary": r.get("excerpt", ""),
+                "published": r.get("date", ""),
+                "source": name,
+                "raw_id": None,
+            }
+            for r in doc.get("posts", [])
+        ]
+
+    # "generic": has a guid, but the provider regenerates it whenever an
+    # item is edited (typos, added tags, retitles).
+    return [
+        {
+            "title": r["title"],
+            "link": r["link"],
+            "summary": r.get("description", ""),
+            "published": r.get("pubDate", ""),
+            "source": name,
+            "raw_id": r.get("guid"),
+        }
+        for r in doc.get("items", [])
+    ]
+
+=== store.py ===
+"""SQLite persistence.
+
+Two tables:
+
+- `items` is an archive of everything we have ever seen, mostly so that we
+  can answer "did this ever come through?" when someone asks.
+- `deliveries` is the dedup ledger: one row per (channel, item_key) we have
+  successfully delivered. digest.py consults it before sending, so an item
+  reaches a channel at most once. Item keys come from feeds.item_key();
+  dedup is per channel, because two channels can legitimately want the
+  same story.
+"""
+
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    raw_id      TEXT,
+    title       TEXT NOT NULL,
+    link        TEXT NOT NULL,
+    summary     TEXT,
+    published   TEXT,
+    first_seen  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
+
+CREATE TABLE IF NOT EXISTS deliveries (
+    channel   TEXT NOT NULL,
+    item_key  TEXT NOT NULL,
+    sent_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (channel, item_key)
+);
+"""
+
+
+def connect(path):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.commit()
+    return conn
+
+
+def record_items(conn, source, items):
+    conn.executemany(
+        "INSERT INTO items (source, raw_id, title, link, summary, published)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (source, i["raw_id"], i["title"], i["link"], i.get("summary"), i.get("published"))
+            for i in items
+        ],
+    )
+    conn.commit()
+
+
+def count_items(conn):
+    return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
+
+
+def delivered_keys(conn, channel):
+    """The set of item keys already delivered to this channel."""
+    rows = conn.execute(
+        "SELECT item_key FROM deliveries WHERE channel = ?", (channel,)
+    )
+    return {row["item_key"] for row in rows}
+
+
+def record_deliveries(conn, channel, keys):
+    """Mark keys as delivered. Call only AFTER a successful send, so a
+    failed delivery is retried on the next run (at-least-once, never
+    silently dropped)."""
+    conn.executemany(
+        "INSERT OR IGNORE INTO deliveries (channel, item_key) VALUES (?, ?)",
+        [(channel, k) for k in keys],
+    )
+    conn.commit()
+
+=== README.md ===
+# notify-digest
+
+A small cron job that pulls a handful of feeds, filters the items per channel,
+and sends each channel a digest.
+
+## Running
+
+```sh
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3
+```
+
+`--dry-run` prints what would be sent instead of sending it.
+
+Requires Python 3.11+ (uses `tomllib`). No third-party dependencies.
+
+## Layout
+
+| File | Purpose |
+| --- | --- |
+| `digest.py` | CLI entry point, the per-run loop |
+| `feeds.py` | Fetching and normalising the three feed formats |
+| `store.py` | SQLite archive of everything seen + per-channel delivery ledger |
+| `render.py` | Digest text |
+| `channels.py` | Delivery (stdout, webhook) |
+
+The `fixtures/` directory holds two snapshots of the feeds taken at different
+times, so you can work on this without network access. Point the config at
+`snapshot-a` or `snapshot-b`.
+
+## Deduplication: why you don't get the same items twice
+
+Each cron tick only sends a channel the items it has not already received.
+`store.py` keeps a `deliveries(channel, item_key)` table; `digest.py` skips
+anything already in it and records a row *after* each successful send. A
+failed send records nothing, so the next tick retries it (at-least-once,
+never silently dropped).
+
+`item_key` (in `feeds.py`) identifies an item by **source + normalised URL
+path**, deliberately *not* by the provider's id, because none of the three
+providers offer something we can trust across all of them:
+
+| Provider | Why its id doesn't work |
+| --- | --- |
+| newsroom | `entry_id` is fine, but links carry rotating `?utm_campaign=wNN` params — the query string is stripped so edits don't look new |
+| blogroll | no id at all; permalink is stable even when the post is edited |
+| wire ("generic") | `guid` is regenerated every time an item is edited |
+
+Trade-off: an item edited after delivery is *not* re-sent (we key on the
+URL, not the content), and if a provider ever distinguishes items by query
+string, `feeds.item_key()` needs revisiting.
+
+**First run after deploying this fix:** the ledger starts empty, so every
+item currently in the feeds is sent once more. To avoid that, backfill:
+
+```sh
+python3 - <<'PY'
+import digest, feeds, store
+cfg = digest.load_config("config.toml")
+db = store.connect("digest.sqlite3")
+items = [i for f in cfg["feeds"] for i in feeds.fetch(f)]
+for ch in cfg["channels"]:
+    keys = {feeds.item_key(i) for i in items if digest.matches(i, ch)}
+    store.record_deliveries(db, ch["name"], keys)
+PY
+```
+
+(or just accept one last full send).
+
+## Deployment
+
+Runs from cron on the utility box:
+
+```
+*/15 * * * * cd /srv/notify-digest && python3 digest.py >> /var/log/digest.log 2>&1
+```
+[0m
+timestamp=2026-08-26T18:17:36.738Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:36.755Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=4
+timestamp=2026-08-26T18:17:36.777Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:36.779Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4ab8f4001ZaJhNJcSrCVgMH
+timestamp=2026-08-26T18:17:36.780Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:36.784Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:42.546Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:17:42.546Z level=INFO run=efaea305 message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/channels.py /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/channels.py" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:42.546Z level=INFO run=efaea305 message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/render.py /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/render.py" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:42.546Z level=INFO run=efaea305 message=evaluated permission=bash pattern="diff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/config.example.toml /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.example.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:42.547Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"---git log---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:42.547Z level=INFO run=efaea305 message=evaluated permission=bash pattern="git log --oneline -20" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mdiff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/channels.py /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/channels.py
+diff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/render.py /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/render.py
+diff /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/config.example.toml /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.example.toml
+echo "---git log---"
+cd /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 && git log --oneline -20
+---git log---
+1dc6ba9 pristine notify-digest
+[0m
+timestamp=2026-08-26T18:17:42.590Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:42.607Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=5
+timestamp=2026-08-26T18:17:42.625Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:42.626Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4acfd0001zyIb32m2CabKjD
+timestamp=2026-08-26T18:17:42.627Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:42.627Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:47.486Z level=INFO run=efaea305 message=evaluated permission=bash pattern="git status" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:47.486Z level=INFO run=efaea305 message=evaluated permission=bash pattern="git diff --stat" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mgit status; git diff --stat
+On branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+	modified:   digest.py
+	modified:   feeds.py
+	modified:   store.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	__pycache__/
+	_agent.log
+	_events.jsonl
+	_metrics.json
+
+no changes added to commit (use "git add" and/or "git commit -a")
+ README.md | 41 ++++++++++++++++++++++++++++++++++++++++-
+ digest.py | 29 ++++++++++++++++++++++++-----
+ feeds.py  | 22 ++++++++++++++++++++++
+ store.py  | 38 +++++++++++++++++++++++++++++++++++---
+ 4 files changed, 121 insertions(+), 9 deletions(-)
+[0m
+timestamp=2026-08-26T18:17:47.566Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:47.583Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=6
+timestamp=2026-08-26T18:17:47.603Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:47.604Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4ae340001jWCxjYKez7u6JI
+timestamp=2026-08-26T18:17:47.605Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:47.605Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:52.861Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:17:52.865Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:17:52.865Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:17:52.866Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test/__pycache__ resolved=/tmp/nd_test/__pycache__
+timestamp=2026-08-26T18:17:52.866Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test/_agent.log resolved=/tmp/nd_test/_agent.log
+timestamp=2026-08-26T18:17:52.867Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test/_events.jsonl resolved=/tmp/nd_test/_events.jsonl
+timestamp=2026-08-26T18:17:52.867Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test/_metrics.json resolved=/tmp/nd_test/_metrics.json
+timestamp=2026-08-26T18:17:52.867Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test/.git resolved=/tmp/nd_test/.git
+timestamp=2026-08-26T18:17:52.867Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:17:52.868Z level=INFO run=efaea305 message="resolved path" arg=config.example.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.example.toml
+timestamp=2026-08-26T18:17:52.868Z level=INFO run=efaea305 message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.toml
+timestamp=2026-08-26T18:17:52.868Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:17:52.868Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:17:52.868Z level=INFO run=efaea305 message=asking id=per_03f4af7e4001h0zyyg1aqWksWG permission=external_directory patterns="[\"/tmp/*\",\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:17:52.870Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:52.870Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 /tmp/nd_test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:52.870Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_test/__pycache__ /tmp/nd_test/_agent.log /tmp/nd_test/_events.jsonl /tmp/nd_test/_metrics.json /tmp/nd_test/.git" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:52.870Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp config.example.toml config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:52.870Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 --version" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/nd_test && cp -r /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 /tmp/nd_test
+rm -rf /tmp/nd_test/__pycache__ /tmp/nd_test/_agent.log /tmp/nd_test/_events.jsonl /tmp/nd_test/_metrics.json /tmp/nd_test/.git
+cd /tmp/nd_test && cp config.example.toml config.toml
+python3 --version
+Python 3.14.6
+[0m
+timestamp=2026-08-26T18:17:53.833Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:53.854Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=7
+timestamp=2026-08-26T18:17:53.870Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:53.872Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4afbbe001hpAXzCMaOxCFxM
+timestamp=2026-08-26T18:17:53.872Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:53.873Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:17:57.161Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:17:57.165Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:17:57.165Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:17:57.166Z level=INFO run=efaea305 message=asking id=per_03f4b08ae001r7Ji0spBd11dsG permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:17:57.167Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:57.167Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== RUN 1 (snapshot-a) dry-run ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:17:57.167Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3 --dry-run" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && rm -f digest.sqlite3
+echo "=== RUN 1 (snapshot-a) dry-run ==="
+python3 digest.py --config config.toml --db digest.sqlite3 --dry-run
+
+=== RUN 1 (snapshot-a) dry-run ===
+--- would send to ops ---
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+--- would send to energy ---
+Energy digest — 3 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+--- would send to everything ---
+Firehose — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 0 items
+[0m
+timestamp=2026-08-26T18:17:57.260Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:57.275Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=8
+timestamp=2026-08-26T18:17:57.289Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:17:57.295Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4b091c001QsM1M4sjAzJDem
+timestamp=2026-08-26T18:17:57.295Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:17:57.296Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:18:04.110Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:18:04.114Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:18:04.114Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:04.115Z level=INFO run=efaea305 message=asking id=per_03f4b23d2001lDIfN8Pl7Rh11F permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:18:04.116Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:04.116Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== RUN 1 (snapshot-a) real send ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:04.116Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:04.116Z level=INFO run=efaea305 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:04.116Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== RUN 2 (snapshot-a) real send AGAIN - should dedupe to 0 ===\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && rm -f digest.sqlite3
+echo "=== RUN 1 (snapshot-a) real send ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+echo
+echo "=== RUN 2 (snapshot-a) real send AGAIN - should dedupe to 0 ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+
+=== RUN 1 (snapshot-a) real send ===
+=== ops ===
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+=== energy ===
+Energy digest — 3 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+=== everything ===
+Firehose — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 12 items
+
+=== RUN 2 (snapshot-a) real send AGAIN - should dedupe to 0 ===
+sent 0 items
+[0m
+timestamp=2026-08-26T18:18:04.254Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:04.269Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=9
+timestamp=2026-08-26T18:18:04.284Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:04.289Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4b246e001phFcEiC4qFaNX2
+timestamp=2026-08-26T18:18:04.289Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:18:04.290Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:18:08.285Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:18:08.291Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:08.292Z level=INFO run=efaea305 message=asking id=per_03f4b3424001MtwZOKpDt3XIba permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:18:08.295Z level=INFO run=efaea305 message=evaluated permission=bash pattern="sed -i.bak 's#snapshot-a#snapshot-b#g' config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:08.295Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== RUN 3 (snapshot-b) real send after snapshot-a already delivered ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:08.295Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test
+sed -i.bak 's#snapshot-a#snapshot-b#g' config.toml
+echo "=== RUN 3 (snapshot-b) real send after snapshot-a already delivered ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+
+=== RUN 3 (snapshot-b) real send after snapshot-a already delivered ===
+=== ops ===
+Ops digest — 1 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+=== everything ===
+Firehose — 1 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+sent 2 items
+[0m
+timestamp=2026-08-26T18:18:08.402Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:08.420Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=10
+timestamp=2026-08-26T18:18:08.435Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:08.441Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4b34a5001MIWlNYk2hNXunZ
+timestamp=2026-08-26T18:18:08.441Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:18:08.441Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:18:15.995Z level=INFO run=efaea305 message=cleanup prune=7.days
+timestamp=2026-08-26T18:18:35.163Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:18:35.172Z level=INFO run=efaea305 message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.toml
+timestamp=2026-08-26T18:18:35.172Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:18:35.173Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:35.173Z level=INFO run=efaea305 message=asking id=per_03f4b9d25001b7fp3RwB4gLCxT permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:18:35.176Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:35.176Z level=INFO run=efaea305 message=evaluated permission=bash pattern="head -30" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:35.176Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:35.176Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat digest.sqlite3 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:35.176Z level=INFO run=efaea305 message=evaluated permission=bash pattern="wc -c" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:35.176Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport sqlite3\nconn = sqlite3.connect('digest.sqlite3')\nfor row in conn.execute('SELECT * FROM deliveries'):\n    print(row)\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && cat config.toml | head -30
+echo "---"
+cat digest.sqlite3 2>/dev/null | wc -c
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('digest.sqlite3')
+for row in conn.execute('SELECT * FROM deliveries'):
+    print(row)
+"
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-b/newsroom.json"
+
+[[feeds]]
+name = "blogroll"
+format = "blogroll"
+url = "file://fixtures/snapshot-b/blogroll.json"
+
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-b/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port", "levy", "fee"]
+
+[[channels]]
+name = "energy"
+type = "stdout"
+title = "Energy digest"
+keywords = ["tender", "grid", "offshore"]
+
+[[channels]]
+name = "everything"
+type = "stdout"
+---
+   24576
+('ops', 'blogroll|https|blog.example|/port-fee-arithmetic', '2026-08-26 18:18:04')
+('ops', 'wire|https|wire.example|/i/0031', '2026-08-26 18:18:04')
+('ops', 'newsroom|https|newsroom.example|/2026/08/port-fees', '2026-08-26 18:18:04')
+('energy', 'newsroom|https|newsroom.example|/2026/08/offshore-tender', '2026-08-26 18:18:04')
+('energy', 'wire|https|wire.example|/i/0918', '2026-08-26 18:18:04')
+('energy', 'blogroll|https|blog.example|/offshore-tender-history', '2026-08-26 18:18:04')
+('everything', 'blogroll|https|blog.example|/port-fee-arithmetic', '2026-08-26 18:18:04')
+('everything', 'wire|https|wire.example|/i/0031', '2026-08-26 18:18:04')
+('everything', 'newsroom|https|newsroom.example|/2026/08/port-fees', '2026-08-26 18:18:04')
+('everything', 'newsroom|https|newsroom.example|/2026/08/offshore-tender', '2026-08-26 18:18:04')
+('everything', 'wire|https|wire.example|/i/0918', '2026-08-26 18:18:04')
+('everything', 'blogroll|https|blog.example|/offshore-tender-history', '2026-08-26 18:18:04')
+('ops', 'newsroom|https|newsroom.example|/2026/08/port-fees-union', '2026-08-26 18:18:08')
+('everything', 'newsroom|https|newsroom.example|/2026/08/port-fees-union', '2026-08-26 18:18:08')
+[0m
+timestamp=2026-08-26T18:18:35.240Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:35.256Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=11
+timestamp=2026-08-26T18:18:35.271Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:35.277Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4b9d79001QVE8QeBfL1uyvq
+timestamp=2026-08-26T18:18:35.277Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:18:35.278Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:18:41.916Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2 resolved=/tmp/nd_test2
+timestamp=2026-08-26T18:18:41.921Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:18:41.921Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2 resolved=/tmp/nd_test2
+timestamp=2026-08-26T18:18:41.930Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2/__pycache__ resolved=/tmp/nd_test2/__pycache__
+timestamp=2026-08-26T18:18:41.933Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2/_agent.log resolved=/tmp/nd_test2/_agent.log
+timestamp=2026-08-26T18:18:41.933Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2/_events.jsonl resolved=/tmp/nd_test2/_events.jsonl
+timestamp=2026-08-26T18:18:41.933Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2/_metrics.json resolved=/tmp/nd_test2/_metrics.json
+timestamp=2026-08-26T18:18:41.933Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2/.git resolved=/tmp/nd_test2/.git
+timestamp=2026-08-26T18:18:41.934Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2 resolved=/tmp/nd_test2
+timestamp=2026-08-26T18:18:41.934Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:18:41.934Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:41.934Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test2/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:41.934Z level=INFO run=efaea305 message=asking id=per_03f4bb78e001ZfPTE4vt3FmWjg permission=external_directory patterns="[\"/tmp/*\",\"/tmp/nd_test2/*\"]"
+timestamp=2026-08-26T18:18:41.935Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_test2" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 /tmp/nd_test2" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_test2/__pycache__ /tmp/nd_test2/_agent.log /tmp/nd_test2/_events.jsonl /tmp/nd_test2/_metrics.json /tmp/nd_test2/.git" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cat > config.toml <<'EOF'\n[[feeds]]\nname = \"newsroom\"\nformat = \"newsroom\"\nurl = \"file://fixtures/snapshot-a/newsroom.json\"\n\n[[channels]]\nname = \"ops\"\ntype = \"stdout\"\ntitle = \"Ops digest\"\nkeywords = []\n\n[[channels]]\nname = \"broken\"\ntype = \"webhook\"\nurl = \"http://127.0.0.1:1/nope\"\nkeywords = []\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== First run: ops succeeds (stdout), broken fails (webhook, connection refused) ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:41.936Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"EXIT CODE: $?\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/nd_test2 && cp -r /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 /tmp/nd_test2
+rm -rf /tmp/nd_test2/__pycache__ /tmp/nd_test2/_agent.log /tmp/nd_test2/_events.jsonl /tmp/nd_test2/_metrics.json /tmp/nd_test2/.git
+cd /tmp/nd_test2
+cat > config.toml <<'EOF'
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = []
+
+[[channels]]
+name = "broken"
+type = "webhook"
+url = "http://127.0.0.1:1/nope"
+keywords = []
+EOF
+rm -f digest.sqlite3
+echo "=== First run: ops succeeds (stdout), broken fails (webhook, connection refused) ==="
+python3 digest.py --config config.toml --db digest.sqlite3
+echo "EXIT CODE: $?"
+
+=== First run: ops succeeds (stdout), broken fails (webhook, connection refused) ===
+=== ops ===
+Ops digest — 2 item(s)
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 1321, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              encode_chunked=req.has_header('Transfer-encoding'))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1367, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1413, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1362, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1122, in _send_output
+    self.send(msg)
+    ~~~~~~~~~^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1066, in send
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1032, in connect
+    self.sock = self._create_connection(
+                ~~~~~~~~~~~~~~~~~~~~~~~^
+        (self.host,self.port), self.timeout, self.source_address)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socket.py", line 874, in create_connection
+    raise exceptions[0]
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socket.py", line 859, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [Errno 61] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/nd_test2/channels.py", line 33, in send
+    with urllib.request.urlopen(req, timeout=10) as resp:
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 487, in open
+    response = self._open(req, data)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 504, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+                              '_open', req)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 1350, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 1324, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 61] Connection refused>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/nd_test2/digest.py", line 98, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/private/tmp/nd_test2/digest.py", line 90, in main
+    sent = run_once(cfg, db, dry_run=args.dry_run)
+  File "/private/tmp/nd_test2/digest.py", line 73, in run_once
+    channels.send(chan_cfg, body)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/private/tmp/nd_test2/channels.py", line 37, in send
+    raise DeliveryError(f"{chan_cfg['name']}: {exc}") from exc
+channels.DeliveryError: broken: <urlopen error [Errno 61] Connection refused>
+EXIT CODE: 1
+[0m
+timestamp=2026-08-26T18:18:42.054Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:42.071Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=12
+timestamp=2026-08-26T18:18:42.087Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:42.088Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4bb817001B2MNIwomVWXyEw
+timestamp=2026-08-26T18:18:42.089Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:18:42.089Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:18:46.699Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2 resolved=/tmp/nd_test2
+timestamp=2026-08-26T18:18:46.704Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test2/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:46.704Z level=INFO run=efaea305 message=asking id=per_03f4bca30001K99blJNYs6CjFI permission=external_directory patterns="[\"/tmp/nd_test2/*\"]"
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern="sed -i.bak 's#http://127.0.0.1:1/nope#http://127.0.0.1:9/nope#' config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"=== Second run (still broken, retry) - ops should NOT resend ===\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3 2>&1" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern="head -5" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"deliveries table:\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:46.707Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport sqlite3\nconn = sqlite3.connect('digest.sqlite3')\nfor row in conn.execute('SELECT * FROM deliveries'):\n    print(row)\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test2
+sed -i.bak 's#http://127.0.0.1:1/nope#http://127.0.0.1:9/nope#' config.toml
+echo "=== Second run (still broken, retry) - ops should NOT resend ==="
+python3 digest.py --config config.toml --db digest.sqlite3 2>&1 | head -5
+echo
+echo "deliveries table:"
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('digest.sqlite3')
+for row in conn.execute('SELECT * FROM deliveries'):
+    print(row)
+"
+=== Second run (still broken, retry) - ops should NOT resend ===
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 1321, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              encode_chunked=req.has_header('Transfer-encoding'))
+
+deliveries table:
+('ops', 'newsroom|https|newsroom.example|/2026/08/port-fees', '2026-08-26 18:18:42')
+('ops', 'newsroom|https|newsroom.example|/2026/08/offshore-tender', '2026-08-26 18:18:42')
+[0m
+timestamp=2026-08-26T18:18:46.831Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:46.846Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=13
+timestamp=2026-08-26T18:18:46.862Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:46.863Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4bcabf001PRfSctmL8qy9xI
+timestamp=2026-08-26T18:18:46.863Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:18:46.864Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:18:58.017Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_migrate resolved=/tmp/nd_migrate
+timestamp=2026-08-26T18:18:58.021Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_migrate resolved=/tmp/nd_migrate
+timestamp=2026-08-26T18:18:58.033Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_migrate resolved=/tmp/nd_migrate
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/store.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/store.py
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=. resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/feeds.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/feeds.py
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=. resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.py
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=. resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/channels.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/channels.py
+timestamp=2026-08-26T18:18:58.034Z level=INFO run=efaea305 message="resolved path" arg=. resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:18:58.035Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/render.py resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/render.py
+timestamp=2026-08-26T18:18:58.035Z level=INFO run=efaea305 message="resolved path" arg=. resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:18:58.035Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:18:58.035Z level=INFO run=efaea305 message=asking id=per_03f4bf6730012HQ1s3VJxNs3LG permission=external_directory patterns="[\"/tmp/*\"]"
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_migrate" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="mkdir -p /tmp/nd_migrate" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport sqlite3\nconn = sqlite3.connect('digest.sqlite3')\nconn.executescript('''\nCREATE TABLE items (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    source TEXT NOT NULL,\n    raw_id TEXT,\n    title TEXT NOT NULL,\n    link TEXT NOT NULL,\n    summary TEXT,\n    published TEXT,\n    first_seen TEXT NOT NULL DEFAULT (datetime(\\\"now\\\"))\n);\nCREATE INDEX idx_items_source ON items(source);\n''')\nconn.execute('INSERT INTO items (source, raw_id, title, link) VALUES (?,?,?,?)', ('old','1','old title','http://old'))\nconn.commit()\n\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/store.py ." action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/feeds.py ." action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.py ." action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/channels.py ." action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/render.py ." action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:18:58.037Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport store\nconn = store.connect('digest.sqlite3')\nprint('items count:', store.count_items(conn))\nprint('tables:', [r[0] for r in conn.execute(\\\"SELECT name FROM sqlite_master WHERE type='table'\\\")])\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/nd_migrate && mkdir -p /tmp/nd_migrate && cd /tmp/nd_migrate
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('digest.sqlite3')
+conn.executescript('''
+CREATE TABLE items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    raw_id TEXT,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL,
+    summary TEXT,
+    published TEXT,
+    first_seen TEXT NOT NULL DEFAULT (datetime(\"now\"))
+);
+CREATE INDEX idx_items_source ON items(source);
+''')
+conn.execute('INSERT INTO items (source, raw_id, title, link) VALUES (?,?,?,?)', ('old','1','old title','http://old'))
+conn.commit()
+"
+cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/store.py .
+cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/feeds.py .
+cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.py .
+cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/channels.py .
+cp /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/render.py .
+python3 -c "
+import store
+conn = store.connect('digest.sqlite3')
+print('items count:', store.count_items(conn))
+print('tables:', [r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")])
+"
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    conn.executescript('''
+    ~~~~~~~~~~~~~~~~~~^^^^
+    CREATE TABLE items (
+    ^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    CREATE INDEX idx_items_source ON items(source);
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ''')
+    ^^^^
+sqlite3.OperationalError: default value of column [first_seen] is not constant
+items count: 0
+tables: ['items', 'sqlite_sequence', 'deliveries']
+[0m
+timestamp=2026-08-26T18:18:58.124Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:58.138Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=14
+timestamp=2026-08-26T18:18:58.152Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:18:58.158Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4bf6db001nKbsfYFDJIpQKj
+timestamp=2026-08-26T18:18:58.158Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:18:58.159Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:19:04.701Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_migrate resolved=/tmp/nd_migrate
+timestamp=2026-08-26T18:19:04.707Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:19:04.708Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_migrate/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:19:04.708Z level=INFO run=efaea305 message=asking id=per_03f4c1084001qsoQ6QnlIPA1iS permission=external_directory patterns="[\"/tmp/nd_migrate/*\"]"
+timestamp=2026-08-26T18:19:04.711Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:04.711Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 << 'EOF'\nimport sqlite3\nconn = sqlite3.connect('digest.sqlite3')\nconn.execute(\"\"\"\nCREATE TABLE items (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    source TEXT NOT NULL,\n    raw_id TEXT,\n    title TEXT NOT NULL,\n    link TEXT NOT NULL,\n    summary TEXT,\n    published TEXT,\n    first_seen TEXT NOT NULL DEFAULT (datetime('now'))\n)\n\"\"\")\nconn.execute(\"CREATE INDEX idx_items_source ON items(source)\")\nconn.execute(\"INSERT INTO items (source, raw_id, title, link) VALUES (?,?,?,?)\", ('old','1','old title','http://old'))\nconn.commit()\nconn.close()\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:04.711Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport store\nconn = store.connect('digest.sqlite3')\nprint('items count:', store.count_items(conn))\nprint('tables:', [r[0] for r in conn.execute(\\\"SELECT name FROM sqlite_master WHERE type='table'\\\")])\nprint('delivered_keys ops:', store.delivered_keys(conn, 'ops'))\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_migrate
+rm -f digest.sqlite3
+python3 << 'EOF'
+import sqlite3
+conn = sqlite3.connect('digest.sqlite3')
+conn.execute("""
+CREATE TABLE items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    raw_id TEXT,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL,
+    summary TEXT,
+    published TEXT,
+    first_seen TEXT NOT NULL DEFAULT (datetime('now'))
+)
+""")
+conn.execute("CREATE INDEX idx_items_source ON items(source)")
+conn.execute("INSERT INTO items (source, raw_id, title, link) VALUES (?,?,?,?)", ('old','1','old title','http://old'))
+conn.commit()
+conn.close()
+EOF
+python3 -c "
+import store
+conn = store.connect('digest.sqlite3')
+print('items count:', store.count_items(conn))
+print('tables:', [r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")])
+print('delivered_keys ops:', store.delivered_keys(conn, 'ops'))
+"
+items count: 1
+tables: ['items', 'sqlite_sequence', 'deliveries']
+delivered_keys ops: set()
+[0m
+timestamp=2026-08-26T18:19:04.794Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:19:04.808Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=15
+timestamp=2026-08-26T18:19:04.825Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:19:04.827Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4c10e9001DvKA5ZBNsEcRKx
+timestamp=2026-08-26T18:19:04.827Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:19:04.828Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:19:10.181Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:19:10.190Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3.bak resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3.bak
+timestamp=2026-08-26T18:19:10.190Z level=INFO run=efaea305 message="resolved path" arg=config.toml.bak resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.toml.bak
+timestamp=2026-08-26T18:19:10.190Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:19:10.191Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:19:10.191Z level=INFO run=efaea305 message=asking id=per_03f4c25ef001xITUKx05ulRvU8 permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:19:10.194Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3.bak config.toml.bak" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:10.194Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"test dry-run doesn't record deliveries, so item still shown on next dry-run:\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:10.194Z level=INFO run=efaea305 message=evaluated permission=bash pattern="sed -i.bak 's#snapshot-b#snapshot-a#g' config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:10.195Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:10.195Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3 --dry-run" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:10.195Z level=INFO run=efaea305 message=evaluated permission=bash pattern="grep \"item(s)\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:10.195Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"(both should show full item counts since dry-run never marks delivered)\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && rm -f digest.sqlite3.bak config.toml.bak
+echo "test dry-run doesn't record deliveries, so item still shown on next dry-run:"
+sed -i.bak 's#snapshot-b#snapshot-a#g' config.toml
+rm -f digest.sqlite3
+python3 digest.py --config config.toml --db digest.sqlite3 --dry-run | grep "item(s)"
+python3 digest.py --config config.toml --db digest.sqlite3 --dry-run | grep "item(s)"
+echo "(both should show full item counts since dry-run never marks delivered)"
+test dry-run doesn't record deliveries, so item still shown on next dry-run:
+Ops digest — 3 item(s)
+Energy digest — 3 item(s)
+Firehose — 6 item(s)
+Ops digest — 3 item(s)
+Energy digest — 3 item(s)
+Firehose — 6 item(s)
+(both should show full item counts since dry-run never marks delivered)
+[0m
+timestamp=2026-08-26T18:19:10.344Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:19:10.360Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=16
+timestamp=2026-08-26T18:19:10.387Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:19:10.389Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4c26990019UDqJBaWq9Z4uR
+timestamp=2026-08-26T18:19:10.389Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:19:10.390Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:19:18.106Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:19:18.109Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:19:18.109Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:19:18.109Z level=INFO run=efaea305 message=asking id=per_03f4c44dd0017AyYpumZI7RuXV permission=external_directory patterns="[\"/tmp/nd_test/*\"]"
+timestamp=2026-08-26T18:19:18.110Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:18.110Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3 >/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:18.110Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport store\nconn = store.connect('digest.sqlite3')\nprint('after run1:', store.count_items(conn))\n\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:19:18.111Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport store\nconn = store.connect('digest.sqlite3')\nprint('after run2 (same snapshot again):', store.count_items(conn))\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test && rm -f digest.sqlite3
+python3 digest.py --config config.toml --db digest.sqlite3 >/dev/null
+python3 -c "
+import store
+conn = store.connect('digest.sqlite3')
+print('after run1:', store.count_items(conn))
+"
+python3 digest.py --config config.toml --db digest.sqlite3 >/dev/null
+python3 -c "
+import store
+conn = store.connect('digest.sqlite3')
+print('after run2 (same snapshot again):', store.count_items(conn))
+"
+after run1: 6
+after run2 (same snapshot again): 12
+[0m
+timestamp=2026-08-26T18:19:18.273Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:19:18.289Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=17
+timestamp=2026-08-26T18:19:18.306Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:19:18.307Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4c4592001PyVWPWTpldtkpn
+timestamp=2026-08-26T18:19:18.307Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:19:18.308Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:20:08.393Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2 resolved=/tmp/nd_test2
+timestamp=2026-08-26T18:20:08.401Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test2/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:20:08.401Z level=INFO run=efaea305 message=asking id=per_03f4d0951001RnxpKSpwSl3Knf permission=external_directory patterns="[\"/tmp/nd_test2/*\"]"
+timestamp=2026-08-26T18:20:08.404Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -m py_compile digest.py feeds.py store.py channels.py render.py" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:20:08.404Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"compiles clean\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:20:08.404Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 -c \"\nimport ast\nfor f in ['digest.py','feeds.py','store.py']:\n    tree = ast.parse(open(f).read())\n    print(f, 'OK')\n\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:20:08.404Z level=INFO run=efaea305 message=evaluated permission=bash pattern="grep -n \"count_items\" digest.py feeds.py store.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/nd_test2
+python3 -m py_compile digest.py feeds.py store.py channels.py render.py && echo "compiles clean"
+python3 -c "
+import ast
+for f in ['digest.py','feeds.py','store.py']:
+    tree = ast.parse(open(f).read())
+    print(f, 'OK')
+"
+grep -n "count_items" digest.py feeds.py store.py
+compiles clean
+digest.py OK
+feeds.py OK
+store.py OK
+store.py:59:def count_items(conn):
+[0m
+timestamp=2026-08-26T18:20:08.491Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:20:08.508Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=18
+timestamp=2026-08-26T18:20:08.528Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:20:08.530Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4d09bd001HEfs7MxpUBQ11j
+timestamp=2026-08-26T18:20:08.530Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:20:08.531Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:21:00.268Z level=INFO run=efaea305 message=evaluated permission=bash pattern="grep -in \"reset\\|delete\\|truncate\\|resend\\|re-send\" /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/README.md" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mgrep -in "reset\|delete\|truncate\|resend\|re-send" /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/README.md
+(no output)
+[0m
+timestamp=2026-08-26T18:21:00.326Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:21:00.344Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=19
+timestamp=2026-08-26T18:21:00.361Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:21:00.363Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4dd439001rinPnLCZJ2EX3w
+timestamp=2026-08-26T18:21:00.363Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:21:00.363Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:21:25.015Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill resolved=/tmp/nd_backfill
+timestamp=2026-08-26T18:21:25.017Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:21:25.017Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill resolved=/tmp/nd_backfill
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill/__pycache__ resolved=/tmp/nd_backfill/__pycache__
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill/_agent.log resolved=/tmp/nd_backfill/_agent.log
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill/_events.jsonl resolved=/tmp/nd_backfill/_events.jsonl
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill/_metrics.json resolved=/tmp/nd_backfill/_metrics.json
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill/.git resolved=/tmp/nd_backfill/.git
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill resolved=/tmp/nd_backfill
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=config.example.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.example.toml
+timestamp=2026-08-26T18:21:25.018Z level=INFO run=efaea305 message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/config.toml
+timestamp=2026-08-26T18:21:25.019Z level=INFO run=efaea305 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/digest.sqlite3
+timestamp=2026-08-26T18:21:25.019Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:21:25.019Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_backfill/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:21:25.019Z level=INFO run=efaea305 message=asking id=per_03f4e349b001FwrRh8j4uUpxOc permission=external_directory patterns="[\"/tmp/*\",\"/tmp/nd_backfill/*\"]"
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_backfill" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 /tmp/nd_backfill" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_backfill/__pycache__ /tmp/nd_backfill/_agent.log /tmp/nd_backfill/_events.jsonl /tmp/nd_backfill/_metrics.json /tmp/nd_backfill/.git" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="cp config.example.toml config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"Running backfill script from README verbatim:\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 - <<'PY'\nimport digest, feeds, store\ncfg = digest.load_config(\"config.toml\")\ndb = store.connect(\"digest.sqlite3\")\nitems = [i for f in cfg[\"feeds\"] for i in feeds.fetch(f)]\nfor ch in cfg[\"channels\"]:\n    keys = {feeds.item_key(i) for i in items if digest.matches(i, ch)}\n    store.record_deliveries(db, ch[\"name\"], keys)\nPY" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"exit: $?\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"Now running digest.py for real, should send 0 items since backfilled:\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:25.020Z level=INFO run=efaea305 message=evaluated permission=bash pattern="python3 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/nd_backfill && cp -r /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 /tmp/nd_backfill
+rm -rf /tmp/nd_backfill/__pycache__ /tmp/nd_backfill/_agent.log /tmp/nd_backfill/_events.jsonl /tmp/nd_backfill/_metrics.json /tmp/nd_backfill/.git
+cd /tmp/nd_backfill
+cp config.example.toml config.toml
+rm -f digest.sqlite3
+echo "Running backfill script from README verbatim:"
+python3 - <<'PY'
+import digest, feeds, store
+cfg = digest.load_config("config.toml")
+db = store.connect("digest.sqlite3")
+items = [i for f in cfg["feeds"] for i in feeds.fetch(f)]
+for ch in cfg["channels"]:
+    keys = {feeds.item_key(i) for i in items if digest.matches(i, ch)}
+    store.record_deliveries(db, ch["name"], keys)
+PY
+echo "exit: $?"
+echo "Now running digest.py for real, should send 0 items since backfilled:"
+python3 digest.py --config config.toml --db digest.sqlite3
+Running backfill script from README verbatim:
+exit: 0
+Now running digest.py for real, should send 0 items since backfilled:
+sent 0 items
+[0m
+timestamp=2026-08-26T18:21:25.162Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:21:25.179Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=20
+timestamp=2026-08-26T18:21:25.196Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:21:25.198Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4e353c001gvr1yhH15iyvXT
+timestamp=2026-08-26T18:21:25.198Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:21:25.199Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:21:29.260Z level=INFO run=efaea305 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
+timestamp=2026-08-26T18:21:29.261Z level=INFO run=efaea305 message=evaluated permission=bash pattern="git diff --stat" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:29.261Z level=INFO run=efaea305 message=evaluated permission=bash pattern="echo \"---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:21:29.261Z level=INFO run=efaea305 message=evaluated permission=bash pattern="git diff digest.py" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 && git diff --stat && echo "---" && git diff digest.py
+README.md | 41 ++++++++++++++++++++++++++++++++++++++++-
+ digest.py | 29 ++++++++++++++++++++++++-----
+ feeds.py  | 22 ++++++++++++++++++++++
+ store.py  | 38 +++++++++++++++++++++++++++++++++++---
+ 4 files changed, 121 insertions(+), 9 deletions(-)
+---
+diff --git a/digest.py b/digest.py
+index a1abc33..5dab6f2 100644
+--- a/digest.py
++++ b/digest.py
+@@ -30,7 +30,16 @@ def matches(item, filt):
+ 
+ 
+ def run_once(cfg, db, dry_run=False):
+-    all_items = []
++    """One cron tick: fetch, archive, then send each channel only the items
++    it has not already received (see store.deliveries / feeds.item_key).
++
++    Deliveries are recorded after each successful send. If a send fails the
++    exception propagates (channels.py), nothing is recorded for that channel
++    and the next tick retries it; channels that already succeeded will not
++    re-send.
++    """
++    fetched = []
++    seen = set()  # guard against a feed listing the same item twice
+     for feed_cfg in cfg["feeds"]:
+         try:
+             items = feeds.fetch(feed_cfg)
+@@ -38,21 +47,31 @@ def run_once(cfg, db, dry_run=False):
+             print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+             continue
+         store.record_items(db, feed_cfg["name"], items)
+-        all_items.extend(items)
++        for item in items:
++            key = feeds.item_key(item)
++            if key not in seen:
++                seen.add(key)
++                fetched.append((key, item))
+ 
+-    all_items.sort(key=lambda i: i.get("published", ""), reverse=True)
++    fetched.sort(key=lambda ki: ki[1].get("published", ""), reverse=True)
+ 
+     sent = 0
+     for chan_cfg in cfg["channels"]:
+-        selected = [i for i in all_items if matches(i, chan_cfg)]
++        delivered = store.delivered_keys(db, chan_cfg["name"])
++        selected = [
++            (key, item)
++            for key, item in fetched
++            if key not in delivered and matches(item, chan_cfg)
++        ]
+         if not selected:
+             continue
+-        body = render.digest(selected, chan_cfg)
++        body = render.digest([item for _, item in selected], chan_cfg)
+         if dry_run:
+             print(f"--- would send to {chan_cfg['name']} ---")
+             print(body)
+             continue
+         channels.send(chan_cfg, body)
++        store.record_deliveries(db, chan_cfg["name"], [key for key, _ in selected])
+         sent += len(selected)
+ 
+     return sent
+[0m
+timestamp=2026-08-26T18:21:29.327Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:21:29.344Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=21
+timestamp=2026-08-26T18:21:29.361Z level=INFO run=efaea305 message=tracking hash=2ebfb46e933571ca9a944a5b203fbb865176eb18 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:21:29.362Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4e4581001q0UyoZrs6dKpkX
+timestamp=2026-08-26T18:21:29.363Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:21:29.363Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:22:13.514Z level=INFO run=efaea305 message=evaluated permission=edit pattern=_review.md action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-26T18:22:13.516Z level=INFO run=efaea305 message=formatting file=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/_review.md
+timestamp=2026-08-26T18:22:13.517Z level=INFO run=efaea305 message="touching file" file=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4/_review.md
+[0m← [0mWrite _review.md
+Wrote file successfully.
+[0m
+timestamp=2026-08-26T18:22:13.603Z level=INFO run=efaea305 message=tracking hash=31bf34cd665eea6ce9d25b691dccfbf1f4b77cdf cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:22:13.628Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=22
+timestamp=2026-08-26T18:22:13.648Z level=INFO run=efaea305 message=tracking hash=31bf34cd665eea6ce9d25b691dccfbf1f4b77cdf cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:22:13.650Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4ef27e001wFj336qawt4Xrz
+timestamp=2026-08-26T18:22:13.651Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:22:13.655Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:22:18.653Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test resolved=/tmp/nd_test
+timestamp=2026-08-26T18:22:18.659Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_test2 resolved=/tmp/nd_test2
+timestamp=2026-08-26T18:22:18.666Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_migrate resolved=/tmp/nd_migrate
+timestamp=2026-08-26T18:22:18.667Z level=INFO run=efaea305 message="resolved path" arg=/tmp/nd_backfill resolved=/tmp/nd_backfill
+timestamp=2026-08-26T18:22:18.667Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:22:18.667Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_test2/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:22:18.667Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_migrate/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:22:18.667Z level=INFO run=efaea305 message=evaluated permission=external_directory pattern=/tmp/nd_backfill/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-26T18:22:18.667Z level=INFO run=efaea305 message=asking id=per_03f4f062b001Y2VSgTGPCF9SIm permission=external_directory patterns="[\"/tmp/nd_test/*\",\"/tmp/nd_test2/*\",\"/tmp/nd_migrate/*\",\"/tmp/nd_backfill/*\"]"
+timestamp=2026-08-26T18:22:18.670Z level=INFO run=efaea305 message=evaluated permission=bash pattern="rm -rf /tmp/nd_test /tmp/nd_test2 /tmp/nd_migrate /tmp/nd_backfill" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/nd_test /tmp/nd_test2 /tmp/nd_migrate /tmp/nd_backfill
+(no output)
+[0m
+timestamp=2026-08-26T18:22:18.708Z level=INFO run=efaea305 message=tracking hash=31bf34cd665eea6ce9d25b691dccfbf1f4b77cdf cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:22:18.726Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=23
+timestamp=2026-08-26T18:22:18.744Z level=INFO run=efaea305 message=tracking hash=31bf34cd665eea6ce9d25b691dccfbf1f4b77cdf cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:22:18.746Z level=INFO run=efaea305 message=process session.id=ses_fc0b59858ffegMpQBjEN6tLMwC messageID=msg_03f4f0667001byceL8NQOjVDsG
+timestamp=2026-08-26T18:22:18.746Z level=INFO run=efaea305 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_fc0b59858ffegMpQBjEN6tLMwC small=false agent=build mode=primary
+timestamp=2026-08-26T18:22:18.747Z level=INFO run=efaea305 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-08-26T18:22:27.523Z level=INFO run=efaea305 message=tracking hash=31bf34cd665eea6ce9d25b691dccfbf1f4b77cdf cwd=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4 git=/Users/topi/.local/share/opencode/snapshot/1dc6ba9b576ee59f7c60152a9e969023973dbd43/3c3af36f499803400127604524e950f9eef2baac
+timestamp=2026-08-26T18:22:27.544Z level=INFO run=efaea305 message=loop session.id=ses_fc0b59858ffegMpQBjEN6tLMwC step=24
+timestamp=2026-08-26T18:22:27.545Z level=INFO run=efaea305 message="exiting loop" session.id=ses_fc0b59858ffegMpQBjEN6tLMwC
+timestamp=2026-08-26T18:22:27.550Z level=INFO run=efaea305 message="disposing instance" directory=/Users/topi/proj/qwen3.8-27b-bench/results/qwen3.8-flash-next-q3_k_xl/run-4
