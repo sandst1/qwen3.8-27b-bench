@@ -104,6 +104,7 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | --- | ---: | ---: | ---: | ---: | ---: |
 | claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 2,345,748 | $2.91 |
 | claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 890,341 | $1.31 |
+| qwen3.8-flash-next-q4_k_xl | 36.25 (35.5–37.5) | 4 | 13m 40s (12m 00s–15m 37s) | 563,876 | $0.00 |
 | claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | $1.12 |
 | qwen3.8-flash-next-q3_k_xl | 35.38 (32.5–38.5) | 4 | 7m 40s (5m 32s–12m 44s) | 286,925 | $0.00 |
 | qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | $0.00 |
@@ -118,16 +119,17 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | $0.18 |
 | qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | $0.00 |
 
-`processed` is the whole context volume: input + output + reasoning with cached reads added back. It is the only token figure comparable across providers and local quants. `total` is recorded per run but left out because it excludes cached reads, and whether a re-read prefix is billed as `input` or `cache_read` depends on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium` and `qwen3.8-27b-nvfp4-nothink` report mean `cache_read` near zero; the other labels do not. Cost is not a token ranking.
+`processed` is input + output + reasoning with cached reads added back: the only token figure comparable across providers and local quants. `total` is recorded per run but omitted because it excludes cached reads, and a re-read prefix may be reported as `input` or `cache_read` depending on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium` and `qwen3.8-27b-nvfp4-nothink` report `cache_read` near zero; the other labels do not. Cost is not a token ranking.
 
-Run-time spread separates the setups: local labels vary 1.3–4.6x from fastest to slowest run, while hosted labels vary 1.2–2.0x. The score spreads also reflect central design changes, especially switches between per-channel post-send state and global or pre-send suppression.
+The locally served labels span 1.3–4.6x between fastest and slowest runs; hosted labels span 1.2–2.0x. That variation separates the setups rather than decorating the table.
 
-No label reports non-zero `mean_tokens.reasoning`, so there is no reasoning column. That does not mean the models did not think: these providers fold thinking into `output`. The same NVFP4 model averaged 23,374 output tokens with medium reasoning versus 5,051 with no-think.
+No label reports non-zero `mean_tokens.reasoning`, so there is no reasoning column. Zero does not mean a model did not think: these providers fold thinking into `output`; the NVFP4 medium-reasoning variant averages 23,374 output tokens against 5,051 for its no-think variant.
 
 | Model | Identity | Ambiguity | Failure modes | Existing code | Code quality | Docs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | claude-opus-5-max | 9.63 | 8.00 | 8.00 | 5.88 | 4.00 | 4.00 |
 | claude-opus-5 | 9.63 | 8.00 | 8.00 | 6.00 | 3.88 | 3.75 |
+| qwen3.8-flash-next-q4_k_xl | 9.50 | 7.00 | 7.25 | 6.00 | 3.50 | 3.00 |
 | claude-sonnet-5-max | 9.38 | 6.75 | 6.25 | 5.88 | 4.00 | 3.38 |
 | qwen3.8-flash-next-q3_k_xl | 9.50 | 7.00 | 7.38 | 4.63 | 4.00 | 2.88 |
 | qwen3.8-27b-nvfp4-reasoning-medium | 9.13 | 6.25 | 6.63 | 5.88 | 3.75 | 3.25 |
@@ -144,75 +146,77 @@ No label reports non-zero `mean_tokens.reasoning`, so there is no reasoning colu
 
 ### Notes
 
-Each label ran four times; scores lead each entry in high-to-low order.
-
-**claude-opus-5-max** — 40.0 / 39.5 / 39.5 / 39.0. All runs agree on per-channel, post-send state.
-- *Good.* Every run uses feed-specific identity: newsroom `entry_id`, blogroll permalink, and wire link over the churning `guid`. Every run marks after successful delivery in a per-channel ledger; migration and tests are present, and successful channels remain marked when another fails.
-- *Bad.* Run-1 misses first-run/backfill, reset, and legacy-duplicate handling; its review reports edited generic/wire items re-sending and index creation failing on old duplicates. Run-2 misses first-run/reset and channel-isolation documentation. Run-3 leaves later-channel starvation, fallback coverage, reset guidance, and regression tests unaddressed. Run-4 misses first-run/backfill and explicit edit policy.
+**claude-opus-5-max** — 40.0 / 39.5 / 39.5 / 39.0. All runs agree on the central delivery design; identity varies only in fallback detail.
+- *Good.* All runs use per-channel ledgers, send then mark, isolate a failed channel, and migrate existing databases. Runs 1–2 use per-format stable fields, run 3 falls back from canonical link to source-scoped ID and content hash, and run 4 aliases multiple keys.
+- *Bad.* Run 1 creates an empty SQLite schema during dry-run; run 2 writes `items` during dry-run. Runs 3–4 omit reset/inspection or duplicate-suppression visibility, and no run resolves concurrent-cron handling.
 
 **claude-opus-5** — 39.5 / 39.5 / 39.0 / 39.0. All runs keep per-channel send-then-mark semantics.
-- *Good.* Every run uses a per-format identity chain that survives tracking changes, missing blogroll IDs, and regenerated wire GUIDs. Suppression is per channel, marking follows delivery, migration is reported in all runs, and dry-run does not consume delivery state.
-- *Bad.* Run-1 has a README overstatement. Run-2 omits first-run/reset documentation and a broken channel can starve later channels. Run-3 omits tracking allowlisting, retention, feed-renames, and tests. Run-4 omits first-run/reset, edit semantics, channel-stall discussion, and tests.
+- *Good.* Every run uses a per-format identity chain, a per-channel ledger, post-delivery state, and a migration. Runs 1, 3, and 4 isolate failures; run 2 verifies recovery, but its review does not establish continued processing after a failed channel.
+- *Bad.* Run 1 says the dry-run records nothing while it archives rows. Runs 2–4 leave reset, retention, feed-rename, or edit-resend behavior incomplete; run 3 also includes a stray generated config.
 
-**claude-sonnet-5-max** — 39.5 / 38.5 / 33.5 / 31.0. Run-1 records globally after the whole run; runs 2–4 use per-channel post-send state.
-- *Good.* All runs handle the fixture identities. Runs 2–4 use per-channel ledgers marked after successful delivery; run-2 verifies legacy-duplicate migration, and run-1 also supplies migration work.
-- *Bad.* Run-1's global whole-run marker duplicates already-successful channels after a later failure. Runs 3 and 4 leave delivery exceptions uncaught, starving later channels; run-4 also omits first-run and reset guidance, while run-2 lacks retention and an automated suite.
+**qwen3.8-flash-next-q4_k_xl** — 37.5 / 36.5 / 35.5 / 35.5. The ledger design is stable, but no run fully isolates delivery failures.
+- *Good.* All runs use link-first identity, a per-channel ledger, post-send markers, and additive migration; fixture traps pass. Run 3 uses a per-feed `dedupe_by` rule, while the other runs use canonical-link variants.
+- *Bad.* Runs 1, 3, and 4 let an exception skip later channels; run 4 also treats query-order changes as new items. Run 2 re-sends current feed contents once when its legacy ledger is deployed; run 3 backfills raw-ID archive rows with link IDs and creates duplicates.
 
-**qwen3.8-flash-next-q3_k_xl** — 38.5 / 37.0 / 33.5 / 32.5. All runs use per-channel post-send state, but identity differs between provider-specific keys (runs 1 and 3) and normalized URLs (runs 2 and 4).
-- *Good.* Every run uses a persistent per-channel ledger marked after successful delivery and fixture-correct suppression. Runs 1 and 3 use feed-specific identity; run-3 documents first-run and retry behavior, while run-4 documents all three identity forks and has a tested backfill script.
-- *Bad.* The `items` archive grows through unconditional inserts in runs 1, 2, and 4; run-3 leaves it append-only. Runs 1–3 abort later channels after an uncaught delivery error; run-3 also claims dry-run leaves the database untouched while it writes archive rows, and run-2 permits cross-source link collisions.
+**claude-sonnet-5-max** — 39.5 / 38.5 / 33.5 / 31.0. Run 1's global whole-run marker is the central instability; runs 2–4 instead use per-channel state.
+- *Good.* All runs handle the fixture identities and migrate existing databases. Runs 2–4 send then mark per channel; run 2 also isolates failures, unlike runs 3–4.
+- *Bad.* Run 1's global marker duplicates successful channels after a later failure. Runs 3–4 leave exceptions uncaught and starve later channels; runs 1 and 4 omit first-run/reset guidance, while run 2 lacks tests and retention policy.
 
-**qwen3.8-27b-nvfp4-reasoning-medium** — 36.0 / 35.5 / 34.0 / 34.0. All runs agree on per-channel send-then-mark state.
-- *Good.* Runs 1–3 use feed-specific identities and run-4 normalized links; all pass the fixture transitions. All mark after successful delivery, preserving retries and successful-channel markers; migration work is reported and dry-run does not write sent state.
-- *Bad.* Every run leaves delivery exceptions uncaught, so a broken middle channel starves every later channel. Run-3 also lacks fallback, reset tooling, tests, and smaller retry control. Run-1 omits first-run/reset, same-tick ordering, and intra-feed duplicates. Run-4 omits first-run, edit semantics, abort discussion, and an `items` uniqueness constraint.
+**qwen3.8-flash-next-q3_k_xl** — 38.5 / 37.0 / 33.5 / 32.5. All runs agree on per-channel post-send state, but not identity: runs 1 and 3 use stable feed fields, runs 2 and 4 normalized URLs.
+- *Good.* Every run has a persistent per-channel ledger, post-send marker, additive migration, and fixture-correct suppression. Run 4 scopes URL paths by source; runs 1 and 3 use per-format identities.
+- *Bad.* Every run leaves a failed channel able to starve later channels. Runs 1–2 omit first-run/reset and permit unbounded archive growth; run 2 also permits cross-feed link collisions, and run 3 falsely says dry-run leaves the DB untouched while it writes `items`.
 
-**qwen3.8-27b-4bit-reasoning-medium** — 37.5 / 37.0 / 31.5 / 27.5. Runs 1, 2, and 4 use per-channel post-send state; run-3 marks before delivery.
-- *Good.* Runs 1, 2, and 4 use fixture-verified identity, per-channel suppression, and post-send marking; run-2 supplies tests, migration, and detailed documentation. Run-3 has strong identity and migration work, and run-4 preserves dry-run normally.
-- *Bad.* Run-1's migration backfills `COALESCE(raw_id, link)`, reviving wire GUID churn. Run-2 claims dry-run records nothing while writing archive rows and omits fresh-deployment/channel-starvation guidance. Run-3's pre-send mark loses the batch when `energy` fails. Run-4's unique index crashes on old duplicate archives.
+**qwen3.8-27b-nvfp4-reasoning-medium** — 36.0 / 35.5 / 34.0 / 34.0. The central design is consistent: per-channel post-send state, but no failure isolation.
+- *Good.* All runs use additive migration and per-channel send-then-mark state; fixture traps pass. Runs 1–3 select per-format stable fields, while run 4 uses source plus queryless link.
+- *Bad.* Every run leaves an uncaught failure to starve every later channel. Runs 1–3 omit first-run/reset guidance; run 1 also lets same-batch duplicates through, and run 4 leaves an application-level archive-dedupe race.
 
-**qwen3.8-27b-2bit-reasoning-medium** — 37.0 / 35.0 / 30.5 / 26.5. Runs 1–3 retain per-channel post-send state; run-4 switches to global pre-delivery marking.
-- *Good.* Runs 1 and 2 handle the fixtures, with run-2 selecting newsroom ID, blogroll permalink, and wire link. Runs 1–3 mark after successful delivery; run-2 verifies partial failure and adds 30-day expiry, while run-1 reports migration support.
-- *Bad.* Run-3's raw `(source, link)` key re-sends newsroom items when `utm_campaign` rotates. Run-4's global pre-send mark loses items when a channel fails. Run-1 misses first-run/reset and retention; run-2 misses first-run and starvation analysis; run-3 misses reset and retention configuration.
+**qwen3.8-27b-4bit-reasoning-medium** — 37.5 / 37.0 / 31.5 / 27.5. Run 3 reverses the otherwise per-channel post-send policy and causes data loss; run 4 cannot use an existing database.
+- *Good.* All runs handle fixture identity and address archive insertion. Runs 1–2 use real migrations and per-channel send-then-mark; run 4 also uses post-send state but has no usable migration.
+- *Bad.* Run 1 backfills wire rows by GUID and creates duplicate archive rows. Run 2 says dry-run records nothing while it writes `items`; run 3 marks globally before delivery and permanently loses a failed/later channel's items; run 4 raises `sqlite3.OperationalError` on a pre-fix database.
 
-**claude-sonnet-5** — 35.5 / 31.0 / 29.5 / 29.0. Runs 1–2 use per-channel post-send state, run-3 has the wrong newsroom identity, and run-4 marks globally before delivery.
-- *Good.* Runs 1 and 2 use per-feed identity, per-channel ledgers, post-send marking, and migration; run-3 keeps correct ledger timing and dry-run behavior. Run-4 documents a strong per-format identity, and all four keep the normal dedup state additive.
-- *Bad.* Run-4's global pre-send mark loses every unreached delivery after `DeliveryError`. Run-3's link-only identity re-sends newsroom items after UTM rotation and grows archive rows. Run-1 also grows archive rows and omits crash/retry guidance; no run documents first-run backfill or reset, and run-2 intentionally lets wire edits resend.
+**qwen3.8-27b-2bit-reasoning-medium** — 37.0 / 35.0 / 30.5 / 26.5. Run 4 changes the central design to global mark-before-delivery; the other runs are per-channel post-send.
+- *Good.* Runs 1–3 use additive migration and per-channel send-then-mark state. Runs 1 and 4 use source plus queryless link, run 2 uses per-format stable fields, and all runs address archive insertion.
+- *Bad.* Run 3's raw-link identity re-sends newsroom entries 84121 and 84118 when `utm_campaign` changes. Run 4's global pre-send mark permanently loses items on a failed channel; runs 1–2 also leave later-channel abort and first-run/reset treatment incomplete.
 
-**claude-opus-4.6-max** — 33.0 / 30.0 / 27.5 / 25.5. Scope and timing are consistent; identity and migration fail in runs 3–4.
-- *Good.* All runs use per-channel ledgers, mark after delivery, and preserve dry-run. Runs 1–3 pass the fixtures; runs 1 and 2 use additive schema changes, and run-2 batches the unsent check.
-- *Bad.* Run-3's unique index crashes on old duplicate archives. Run-4 has the same migration crash and raw-link identity re-sends newsroom items after UTM rotation. Run-1 misses README, first-run/backfill, reset, and failure-tradeoff documentation; later runs also omit reset, migration, test, isolation, or edit details.
+**claude-sonnet-5** — 35.5 / 31.0 / 29.5 / 29.0. The runs disagree on identity and state scope; run 4 uses global mark-before-delivery.
+- *Good.* All runs derive identity and add persistent state. Runs 1–3 send then mark per channel, and all migrate the ledger; run 1 uses per-format fields, while run 4 returns to per-format identity despite its global notification state.
+- *Bad.* Run 2's `raw_id or link` re-sends edited wire items, and run 3 re-sends newsroom items after UTM rotation. Run 4's global pre-send marker permanently loses failed/later deliveries; runs 1 and 3 leave archive growth, and no run documents first-run/reset behavior.
 
-**ornith-1.5-35b-a3b-8bit** — 35.0 / 26.0 / 25.0 / 24.5. Run-2 is the only coherent per-channel post-send design; runs 1, 3, and 4 use global or whole-run state.
-- *Good.* All runs use link identity that handles the fixture changes. Run-2 verifies identity, first-run, dry-run, failure isolation, and additive migration; run-3 also uses per-channel post-send state. Run-1's identity and migration are otherwise sound.
-- *Bad.* Run-1's global mark starves failed or newly added channels. Run-3 fails on an existing database and duplicates earlier channels after a later failure. Run-4 marks the whole pending set after the channel loop, drops unmatched items, and duplicates earlier deliveries after a later failure; it also omits README/reset coverage.
+**claude-opus-4.6-max** — 33.0 / 30.0 / 27.5 / 25.5. Per-channel post-send delivery is stable, but identity and migration regress in later runs.
+- *Good.* Every run uses a per-channel ledger and marks after delivery. Runs 1–3 use link-based identity that passes the fixture churn, and runs 1–2 use additive schema changes.
+- *Bad.* Runs 3–4 create a unique archive index without deduplicating old rows and crash on legacy databases. Run 4 also uses raw links and re-sends UTM-rotated newsroom items; runs 1–3 leave the README untouched.
 
-**ornith-1.5-35b-a3b-4bit** — 30.0 / 29.5 / 24.0 / 20.0. Runs 1, 2, and 4 use per-channel post-send ledgers; run-3 uses global archive suppression and consumes dry-run state.
-- *Good.* Runs 1, 2, and 4 pass snapshot transitions with canonical-link identity and post-send marking. Run-2 adds tests and additive migration, and run-4's ledger works with an old database on the normal path.
-- *Bad.* Run-1 crashes during the legacy `items.key` migration. Run-3's global state consumes dry-run, loses items on pre-send failure, and grows duplicate archive rows; it is the only run marked not mergeable. Runs 1, 2, and 4 omit some README, first-run, reset, retention, tests, or edit guidance.
+**ornith-1.5-35b-a3b-8bit** — 35.0 / 26.0 / 25.0 / 24.5. Run 2 is the only per-channel post-send result; the other runs use global or whole-run state.
+- *Good.* All runs use source plus canonical/queryless link identity and handle fixture churn. Run 2 uses an additive per-channel ledger and post-send markers; run 1 also migrates an existing database.
+- *Bad.* Run 1's global `sent_at` state loses a failed channel's items and prevents a new channel receiving history. Run 3 crashes on a legacy DB and duplicates earlier sends after a later failure; run 4 marks unmatched items sent and duplicates successful channels after a later failure.
 
-**claude-sonnet-4.6-max** — 28.5 / 24.0 / 21.5 / 18.0. Identity improves across runs, but global suppression or bad timing remains in every run.
-- *Good.* Run-2's per-source `link OR raw_id` and run-3/4 canonical links address the fixture identities. All runs add tests or migration work, and run-4 documents dedup, dry-run, and crash/retry behavior.
-- *Bad.* Runs 1 and 2 let dry-run poison state; runs 1–3 mark before delivery; run-4 marks globally after the loop and duplicates `ops` when `energy` fails. Run-4 also marks unmatched items out of reach of later channels; the label generally omits first-run/reset and migration detail.
+**ornith-1.5-35b-a3b-4bit** — 30.0 / 29.5 / 24.0 / 20.0. Run 3's global archive state and stateful dry-run are the central break; runs 1, 2, and 4 are per-channel post-send.
+- *Good.* Every run uses canonical-link identity and handles fixture churn. Runs 2 and 4 use additive ledger migration and post-send markers; run 1 has the same marker placement but no usable legacy migration.
+- *Bad.* Run 1 crashes because the existing DB lacks `items.key`. Run 3 lets dry-run consume state, loses items on failure, blocks new channels from history, and grows the archive; every run leaves the README unchanged.
 
-**github-copilot-claude-sonnet-4.6** — 29.0 / 21.0 / 19.0 / 18.5. The runs disagree on identity, scope, timing, and migration.
-- *Good.* Run-3 has source-and-UTM-normalized fingerprints, per-channel state, post-send marking, and inert dry-run. Run-1 also has per-channel post-delivery state, and run-2's fallback identity clears the fixtures in a fresh database.
-- *Bad.* Run-1's raw-link identity re-sends newsroom items and dry-run mutates state. Run-2 crashes on a pre-fix schema and breaks dry-run. Run-3 leaves archive duplication despite its docstring. Run-4 re-sends on UTM rotation and loses items on channel failure; the reviews repeatedly find missing README, reset, and first-run documentation.
+**claude-sonnet-4.6-max** — 28.5 / 24.0 / 21.5 / 18.0. Global item-level suppression, not per-channel delivery tracking, is universal.
+- *Good.* Runs 2–3 use feed-aware or UTM-stripped identity; run 4 uses canonical link. Run 4 marks after the channel loop, unlike runs 1–3, which mark before sending.
+- *Bad.* Runs 1–3 mark before send, permanently lose failed/later deliveries, and runs 1–2 let dry-run poison state. Run 4 globally consumes unmatched items, so a later energy channel cannot receive them.
 
-**github-copilot-claude-opus-4.6** — 24.0 / 21.5 / 20.0 / 19.5. All runs agree on per-channel post-send delivery, but identity coverage is incomplete.
-- *Good.* Every run scopes `sent_items` to item and channel, marks after `send()`, leaves dry-run state-free, and keeps unrelated feed/channel/render code untouched. Run-4's additive table creation upgrades a production database without a manual step.
-- *Bad.* Runs 1, 3, and 4 fail fixture identities involving wire GUID churn, old duplicate archives, or blogroll rows with null `raw_id`. Run-2's `raw_id NOT NULL` silently drops blogroll items and its table creation does not migrate the legacy database. Run-3's unique index raises on existing duplicates; all runs have weak documentation.
+**github-copilot-claude-sonnet-4.6** — 29.0 / 21.0 / 19.0 / 18.5. The runs disagree on identity, state scope, timing, and migration; only run 3 is coherent end to end.
+- *Good.* Run 3 uses source-and-UTM-normalized fingerprints, per-channel post-send state, and inert dry-run. Run 1 also uses per-channel post-send state; run 2's fallback identity handles the fresh-database fixtures.
+- *Bad.* Run 1's raw link re-sends newsroom items and dry-run consumes state. Run 2 has global pre-send loss and no legacy migration; run 3 leaves archive duplication despite documenting it as ignored; run 4 combines raw-link UTM resend with global pre-send loss.
 
-**qwen3.8-27b-nvfp4-nothink** — 28.0 / 25.5 / 18.5 / 6.0. Run-1 made no attempt; runs 2–4 recognize identity but use global or per-item state.
-- *Good.* Runs 2 and 3 normalize `utm_*` and pass fixture identity checks; runs 2–4 document more identity, reset, and first-run behavior. Run-4 is the only run marking after delivery, and run-2 backfills seen state from the archive.
-- *Bad.* Run-1 leaves the duplicate-sending bug unfixed. Runs 2 and 3 mark globally before delivery, so `DeliveryError` permanently loses the batch and archive rows grow. Run-4 is not channel-scoped, prefers `raw_id`, re-sends edited wire items, and crashes migrating old duplicate databases.
+**github-copilot-claude-opus-4.6** — 24.0 / 21.5 / 20.0 / 19.5. Per-channel post-send delivery is universal, but raw-ID-first identity is not sufficient.
+- *Good.* All runs keep `sent_items` scoped to item and channel, mark after `send()`, and leave dry-run state-free. Runs 1 and 4 use additive ledger tables.
+- *Bad.* Runs 1, 3, and 4 re-send edited wire items because GUIDs are preferred. Run 2's `raw_id NOT NULL` silently drops blogroll items; run 3 crashes creating a unique index on duplicate legacy rows; run 4 never dedupes blogroll `NULL` IDs.
+
+**qwen3.8-27b-nvfp4-nothink** — 28.0 / 25.5 / 18.5 / 6.0. Run 1 made no attempt; runs 2–4 use global rather than per-channel state.
+- *Good.* Runs 2–3 normalize `utm_*` and pass fixture identity checks. Run 4 marks after each successful channel, and run 2 backfills global state from the archive; there is no universal sound design.
+- *Bad.* Run 1 leaves duplicate sending unchanged. Runs 2–3 mark globally before delivery and permanently lose failed batches; run 4 re-sends edited wire items, withholds items from later channels after failure, and crashes creating its legacy unique index.
 
 ### Patterns
 
-- A persistent `(channel, item identity)` ledger checked before delivery and marked after success is the clearest separator. Global or pre-send state causes permanent loss, retry duplication, or starvation of newly added channels.
-- Identity must follow the feed: newsroom `entry_id`, blogroll permalink, and wire link survive the fixtures. Raw links fail on newsroom UTM rotation; raw IDs fail on wire GUID churn and blogroll's missing ID.
-- Uncaught channel errors are the common residual defect. Correct marker timing preserves retryability, but an exception still starves later channels; the strongest runs isolate those failures.
-- Migration separates deployable fixes from prototypes. Additive delivery-ledger tables survive old archives; unique indexes over duplicate legacy rows crash several Opus 4.6, 4-bit, and Copilot runs.
-- More time or money did not reliably buy better judgment: claude-opus-5-max averaged 39.50 in 10m 59s for $2.91, while local reasoning labels averaged 32.25–34.88 in 13m 29s–22m 26s at no listed cost. Within the NVFP4 stack, medium reasoning averaged 34.88 versus 19.50 for no-think; no-think includes a 15m 29s no-attempt.
+- A `(channel, identity)` ledger written only after that channel sends is near-universal among the strongest results: both Opus 5 labels use it in every run. Global or pre-send state repeatedly loses failed/later deliveries, duplicates successful channels, or consumes history needed by new channels.
+- Feed-aware identity separates results: raw links re-send newsroom items after UTM rotation, raw-ID-first re-sends edited wire items, and raw-ID-only fails blogroll's `NULL` IDs. Per-format stable fields or normalized source-qualified links survive the fixture changes.
+- Correct marker timing is not sufficient when `DeliveryError` aborts the loop. Qwen flash, NVFP4-medium, and Sonnet 5 max runs commonly preserve retryability yet indefinitely starve channels after a persistently broken earlier channel.
+- Additive ledger tables usually migrate existing databases. Adding item columns or unique indexes without deduplicating/backfilling old rows either leaves the change inert or crashes startup.
+- More time or money did not reliably buy better judgment: `claude-opus-5-max` averaged 39.50 in about 11 minutes for $2.91, while several slower local reasoning labels scored 32.25–34.88. Within the same NVFP4 stack, medium reasoning averaged 34.88 versus 19.50 for no-think, though the no-think set includes a 15-minute no-attempt.
 
 <!-- BENCH:RESULTS:END -->
 
