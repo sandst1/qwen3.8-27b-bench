@@ -108,6 +108,7 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | $1.12 |
 | qwen3.8-flash-next-q3_k_xl | 35.38 (32.5–38.5) | 4 | 7m 40s (5m 32s–12m 44s) | 286,925 | $0.00 |
 | qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | $0.00 |
+| Qwen3.8-Flash-Next-tensorfold | 34.75 (30.0–38.5) | 4 | 10m 03s (5m 08s–14m 36s) | 622,500 | $0.00 |
 | qwen3.8-27b-4bit-reasoning-medium | 33.38 (27.5–37.5) | 4 | 22m 26s (13m 08s–26m 00s) | 747,066 | $0.00 |
 | qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | $0.00 |
 | claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | $0.33 |
@@ -119,7 +120,7 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | $0.18 |
 | qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | $0.00 |
 
-`processed` is input + output + reasoning with cached reads added back: the only token figure comparable across providers and local quants. `total` is recorded per run but omitted because it excludes cached reads, and a re-read prefix may be reported as `input` or `cache_read` depending on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium` and `qwen3.8-27b-nvfp4-nothink` report `cache_read` near zero; the other labels do not. Cost is not a token ranking.
+`processed` is input + output + reasoning with cached reads added back: the only token figure comparable across providers and local quants. `total` is recorded per run but omitted because it excludes cached reads, and a re-read prefix may be reported as `input` or `cache_read` depending on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium`, `Qwen3.8-Flash-Next-tensorfold`, and `qwen3.8-27b-nvfp4-nothink` report `cache_read` near zero; the other labels do not. Cost is not a token ranking.
 
 The locally served labels span 1.3–4.6x between fastest and slowest runs; hosted labels span 1.2–2.0x. That variation separates the setups rather than decorating the table.
 
@@ -133,6 +134,7 @@ No label reports non-zero `mean_tokens.reasoning`, so there is no reasoning colu
 | claude-sonnet-5-max | 9.38 | 6.75 | 6.25 | 5.88 | 4.00 | 3.38 |
 | qwen3.8-flash-next-q3_k_xl | 9.50 | 7.00 | 7.38 | 4.63 | 4.00 | 2.88 |
 | qwen3.8-27b-nvfp4-reasoning-medium | 9.13 | 6.25 | 6.63 | 5.88 | 3.75 | 3.25 |
+| Qwen3.8-Flash-Next-tensorfold | 9.50 | 6.63 | 7.25 | 5.25 | 3.25 | 2.88 |
 | qwen3.8-27b-4bit-reasoning-medium | 9.13 | 6.50 | 6.13 | 5.25 | 3.13 | 3.25 |
 | qwen3.8-27b-2bit-reasoning-medium | 8.38 | 5.00 | 5.88 | 6.00 | 3.75 | 3.25 |
 | claude-sonnet-5 | 8.13 | 5.88 | 5.63 | 5.13 | 3.63 | 2.88 |
@@ -169,6 +171,10 @@ No label reports non-zero `mean_tokens.reasoning`, so there is no reasoning colu
 **qwen3.8-27b-nvfp4-reasoning-medium** — 36.0 / 35.5 / 34.0 / 34.0. The central design is consistent: per-channel post-send state, but no failure isolation.
 - *Good.* All runs use additive migration and per-channel send-then-mark state; fixture traps pass. Runs 1–3 select per-format stable fields, while run 4 uses source plus queryless link.
 - *Bad.* Every run leaves an uncaught failure to starve every later channel. Runs 1–3 omit first-run/reset guidance; run 1 also lets same-batch duplicates through, and run 4 leaves an application-level archive-dedupe race.
+
+**Qwen3.8-Flash-Next-tensorfold** — 38.5 / 37.0 / 33.5 / 30.0. The per-channel post-send ledger is stable, but the upgrade and dry-run stories vary materially across runs.
+- *Good.* All runs use canonical URL/path identity with a fallback, a per-channel ledger, and markers written after successful delivery, so the fixture churn is suppressed and successful earlier channels are not re-sent. Run 3 adds a quiet-upgrade path and tests; run 4 explicitly documents the three design forks.
+- *Bad.* Runs 1–2 leave the old archive table vestigial or abandoned on upgrade, losing its audit role; run 1 also documents retries incorrectly and can starve later channels. Run 3 seeds every archived item as delivered to every channel, silently suppressing a later edit that newly matches a channel; run 4 falsely says `--dry-run` ignores the ledger even though it filters against it.
 
 **qwen3.8-27b-4bit-reasoning-medium** — 37.5 / 37.0 / 31.5 / 27.5. Run 3 reverses the otherwise per-channel post-send policy and causes data loss; run 4 cannot use an existing database.
 - *Good.* All runs handle fixture identity and address archive insertion. Runs 1–2 use real migrations and per-channel send-then-mark; run 4 also uses post-send state but has no usable migration.
