@@ -100,33 +100,34 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 
 <!-- BENCH:RESULTS:BEGIN -->
 
-| Model | Score / 40 | Runs | Time | Tokens processed | Reasoning tokens | Cost |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 2,345,748 | 0 | $2.91 |
-| claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 890,341 | 0 | $1.31 |
-| gpt-6.1-sol-high | 36.75 (33.0–39.0) | 4 | 2m 39s (2m 22s–2m 52s) | 223,101 | 1,335 | $0.15 |
-| qwen3.8-flash-next-q4_k_xl | 36.25 (35.5–37.5) | 4 | 13m 40s (12m 00s–15m 37s) | 563,876 | 0 | $0.00 |
-| claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | 0 | $1.12 |
-| qwen3.8-flash-next-q3_k_xl | 35.38 (32.5–38.5) | 4 | 7m 40s (5m 32s–12m 44s) | 286,925 | 0 | $0.00 |
-| qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | 0 | $0.00 |
-| Qwen3.8-Flash-Next-tensorfold | 34.75 (30.0–38.5) | 4 | 10m 03s (5m 08s–14m 36s) | 622,500 | 0 | $0.00 |
-| qwen3.8-27b-4bit-reasoning-medium | 33.38 (27.5–37.5) | 4 | 22m 26s (13m 08s–26m 00s) | 747,066 | 0 | $0.00 |
-| qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | 0 | $0.00 |
-| claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | 0 | $0.33 |
-| claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 578,206 | 0 | $1.07 |
-| gpt-6.1-sol-medium | 28.38 (0.0–38.5) | 4 | 2m 09s (0s–2m 55s) | 162,082 | 1,024 | $0.11 |
-| ornith-1.5-35b-a3b-8bit | 27.62 (24.5–35.0) | 4 | 12m 00s (10m 17s–13m 01s) | 689,393 | 0 | $0.00 |
-| ornith-1.5-35b-a3b-4bit | 25.88 (20.0–30.0) | 4 | 8m 52s (6m 52s–11m 59s) | 777,324 | 0 | $0.00 |
-| claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 514,191 | 0 | $0.59 |
-| github-copilot-claude-sonnet-4.6 | 21.88 (18.5–29.0) | 4 | 3m 01s (2m 41s–3m 14s) | 206,790 | 0 | $0.22 |
-| github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | 0 | $0.18 |
-| qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | 0 | $0.00 |
+| Model | Score / 40 | Runs | Time | Tokens processed | Cost |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 2,345,748 | $2.91 |
+| claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 890,341 | $1.31 |
+| gpt-6.1-sol-high | 36.75 (33.0–39.0) | 4 | 2m 39s (2m 22s–2m 52s) | 223,101 | $0.15 |
+| qwen3.8-flash-next-q4_k_xl | 36.25 (35.5–37.5) | 4 | 13m 40s (12m 00s–15m 37s) | 563,876 | $0.00 |
+| claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | $1.12 |
+| qwen3.8-flash-next-q3_k_xl | 35.38 (32.5–38.5) | 4 | 7m 40s (5m 32s–12m 44s) | 286,925 | $0.00 |
+| qwen3.8-27b-nvfp4-reasoning-medium | 34.88 (34.0–36.0) | 4 | 18m 34s (13m 48s–28m 52s) | 640,063 | $0.00 |
+| Qwen3.8-Flash-Next-tensorfold | 34.75 (30.0–38.5) | 4 | 10m 03s (5m 08s–14m 36s) | 622,500 | $0.00 |
+| qwen3.8-27b-4bit-reasoning-medium | 33.38 (27.5–37.5) | 4 | 22m 26s (13m 08s–26m 00s) | 747,066 | $0.00 |
+| ornith-122b-nvfp4 | 33.12 (30.0–38.0) | 4 | 14m 01s (8m 09s–26m 52s) | 1,027,716 | $0.00 |
+| qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | $0.00 |
+| claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | $0.33 |
+| claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 578,206 | $1.07 |
+| gpt-6.1-sol-medium | 28.38 (0.0–38.5) | 4 | 2m 09s (0s–2m 55s) | 162,082 | $0.11 |
+| ornith-1.5-35b-a3b-8bit | 27.62 (24.5–35.0) | 4 | 12m 00s (10m 17s–13m 01s) | 689,393 | $0.00 |
+| ornith-1.5-35b-a3b-4bit | 25.88 (20.0–30.0) | 4 | 8m 52s (6m 52s–11m 59s) | 777,324 | $0.00 |
+| claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 514,191 | $0.59 |
+| github-copilot-claude-sonnet-4.6 | 21.88 (18.5–29.0) | 4 | 3m 01s (2m 41s–3m 14s) | 206,790 | $0.22 |
+| github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | $0.18 |
+| qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | $0.00 |
 
-`processed` is input + output + reasoning with cached reads added back: the only token figure comparable across providers and local quants. `total` is recorded per run but omitted because it excludes cached reads, and a re-read prefix may be reported as `input` or `cache_read` depending on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium`, `Qwen3.8-Flash-Next-tensorfold`, and `qwen3.8-27b-nvfp4-nothink` report `cache_read` near zero; the other labels do not. Cost is not a token ranking.
+`processed` is input + output + reasoning with cached reads added back: the only token figure comparable across providers and local quants. `total` is recorded per run but omitted because it excludes cached reads, and a re-read prefix may be reported as `input` or `cache_read` depending on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium`, `Qwen3.8-Flash-Next-tensorfold`, `ornith-122b-nvfp4`, and `qwen3.8-27b-nvfp4-nothink` report `cache_read` near zero; the other labels do not. Cost is not a token ranking.
 
 The locally served labels span 1.3–4.6x between fastest and slowest runs; hosted labels span 1.2–2.0x. That variation separates the setups rather than decorating the table.
 
-`gpt-6.1-sol-high` and `gpt-6.1-sol-medium` report 1,335 and 1,024 mean reasoning tokens, respectively, so the table includes a reasoning column. Zero does not mean a model did not think: the other providers fold thinking into `output`; the NVFP4 medium-reasoning variant averages 23,374 output tokens against 5,051 for its no-think variant.
+`gpt-6.1-sol-high`, `gpt-6.1-sol-medium`, and `ornith-122b-nvfp4` report non-zero mean reasoning tokens (1,335, 1,024, and 20,900). Zero does not mean a model did not think: providers may fold thinking into `output`, as the NVFP4 medium-reasoning variant's 23,374 mean output tokens versus 5,051 for its no-think variant illustrates. This is not a table column because the field is not consistently reported.
 
 | Model | Identity | Ambiguity | Failure modes | Existing code | Code quality | Docs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -139,6 +140,7 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 | qwen3.8-27b-nvfp4-reasoning-medium | 9.13 | 6.25 | 6.63 | 5.88 | 3.75 | 3.25 |
 | Qwen3.8-Flash-Next-tensorfold | 9.50 | 6.63 | 7.25 | 5.25 | 3.25 | 2.88 |
 | qwen3.8-27b-4bit-reasoning-medium | 9.13 | 6.50 | 6.13 | 5.25 | 3.13 | 3.25 |
+| ornith-122b-nvfp4 | 9.25 | 6.13 | 5.63 | 5.88 | 3.50 | 2.75 |
 | qwen3.8-27b-2bit-reasoning-medium | 8.38 | 5.00 | 5.88 | 6.00 | 3.75 | 3.25 |
 | claude-sonnet-5 | 8.13 | 5.88 | 5.63 | 5.13 | 3.63 | 2.88 |
 | claude-opus-4.6-max | 8.00 | 5.50 | 5.25 | 5.38 | 2.75 | 2.13 |
@@ -187,6 +189,10 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 **qwen3.8-27b-4bit-reasoning-medium** — 37.5 / 37.0 / 31.5 / 27.5. Run 3 reverses the otherwise per-channel post-send policy and causes data loss; run 4 cannot use an existing database.
 - *Good.* All runs handle fixture identity and address archive insertion. Runs 1–2 use real migrations and per-channel send-then-mark; run 4 also uses post-send state but has no usable migration.
 - *Bad.* Run 1 backfills wire rows by GUID and creates duplicate archive rows. Run 2 says dry-run records nothing while it writes `items`; run 3 marks globally before delivery and permanently loses a failed/later channel's items; run 4 raises `sqlite3.OperationalError` on a pre-fix database.
+
+**ornith-122b-nvfp4** — 38.0 / 32.5 / 32.0 / 30.0. Runs 1–3 use per-channel post-send state, but run 4 switches to a global, whole-run archive marker, so partial failure behavior is the central instability.
+- *Good.* Runs 1–3 use a dedicated per-channel ledger and write it after delivery; their identities suppress the fixture churn. Run 2 uses per-feed stable fields, while runs 1 and 3 use source-qualified canonical links; run 3 names the at-least-once tradeoff and documents newly-added-channel behavior. All four runs migrate an existing database rather than requiring a clean one.
+- *Bad.* Runs 1–2 silently send the current feed backlog to every channel on the first deployment against an existing database, and omit reset instructions. Run 1 stores a source and link in a NUL-delimited key that is unreadable in the standard SQLite CLI. Run 4's global archive is written only after the channel loop, so a later channel failure causes earlier successful channels to receive the same batch again; it also prevents a later matching channel from receiving an item sent to another channel.
 
 **qwen3.8-27b-2bit-reasoning-medium** — 37.0 / 35.0 / 30.5 / 26.5. Run 4 changes the central design to global mark-before-delivery; the other runs are per-channel post-send.
 - *Good.* Runs 1–3 use additive migration and per-channel send-then-mark state. Runs 1 and 4 use source plus queryless link, run 2 uses per-format stable fields, and all runs address archive insertion.
