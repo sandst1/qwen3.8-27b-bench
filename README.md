@@ -104,6 +104,7 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | claude-opus-5-max | 39.50 (39.0–40.0) | 4 | 10m 59s (9m 02s–13m 23s) | 2,345,748 | 0 | $2.91 |
 | claude-opus-5 | 39.25 (39.0–39.5) | 4 | 5m 25s (4m 22s–5m 59s) | 890,341 | 0 | $1.31 |
+| gpt-6.1-sol-high | 36.75 (33.0–39.0) | 4 | 2m 39s (2m 22s–2m 52s) | 223,101 | 1,335 | $0.15 |
 | qwen3.8-flash-next-q4_k_xl | 36.25 (35.5–37.5) | 4 | 13m 40s (12m 00s–15m 37s) | 563,876 | 0 | $0.00 |
 | claude-sonnet-5-max | 35.62 (31.0–39.5) | 4 | 9m 08s (6m 49s–11m 59s) | 2,127,746 | 0 | $1.12 |
 | qwen3.8-flash-next-q3_k_xl | 35.38 (32.5–38.5) | 4 | 7m 40s (5m 32s–12m 44s) | 286,925 | 0 | $0.00 |
@@ -113,7 +114,7 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | 0 | $0.00 |
 | claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | 0 | $0.33 |
 | claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 578,206 | 0 | $1.07 |
-| gpt-6.1-sol | 28.38 (0.0–38.5) | 4 | 2m 09s (0s–2m 55s) | 162,082 | 1,024 | $0.11 |
+| gpt-6.1-sol-medium | 28.38 (0.0–38.5) | 4 | 2m 09s (0s–2m 55s) | 162,082 | 1,024 | $0.11 |
 | ornith-1.5-35b-a3b-8bit | 27.62 (24.5–35.0) | 4 | 12m 00s (10m 17s–13m 01s) | 689,393 | 0 | $0.00 |
 | ornith-1.5-35b-a3b-4bit | 25.88 (20.0–30.0) | 4 | 8m 52s (6m 52s–11m 59s) | 777,324 | 0 | $0.00 |
 | claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 514,191 | 0 | $0.59 |
@@ -125,12 +126,13 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 
 The locally served labels span 1.3–4.6x between fastest and slowest runs; hosted labels span 1.2–2.0x. That variation separates the setups rather than decorating the table.
 
-`gpt-6.1-sol` reports 1,024 mean reasoning tokens, so it has a column. Zero does not mean a model did not think: the other providers fold thinking into `output`; the NVFP4 medium-reasoning variant averages 23,374 output tokens against 5,051 for its no-think variant.
+`gpt-6.1-sol-high` and `gpt-6.1-sol-medium` report 1,335 and 1,024 mean reasoning tokens, respectively, so the table includes a reasoning column. Zero does not mean a model did not think: the other providers fold thinking into `output`; the NVFP4 medium-reasoning variant averages 23,374 output tokens against 5,051 for its no-think variant.
 
 | Model | Identity | Ambiguity | Failure modes | Existing code | Code quality | Docs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | claude-opus-5-max | 9.63 | 8.00 | 8.00 | 5.88 | 4.00 | 4.00 |
 | claude-opus-5 | 9.63 | 8.00 | 8.00 | 6.00 | 3.88 | 3.75 |
+| gpt-6.1-sol-high | 8.75 | 8.00 | 7.38 | 5.38 | 3.50 | 3.75 |
 | qwen3.8-flash-next-q4_k_xl | 9.50 | 7.00 | 7.25 | 6.00 | 3.50 | 3.00 |
 | claude-sonnet-5-max | 9.38 | 6.75 | 6.25 | 5.88 | 4.00 | 3.38 |
 | qwen3.8-flash-next-q3_k_xl | 9.50 | 7.00 | 7.38 | 4.63 | 4.00 | 2.88 |
@@ -140,7 +142,7 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 | qwen3.8-27b-2bit-reasoning-medium | 8.38 | 5.00 | 5.88 | 6.00 | 3.75 | 3.25 |
 | claude-sonnet-5 | 8.13 | 5.88 | 5.63 | 5.13 | 3.63 | 2.88 |
 | claude-opus-4.6-max | 8.00 | 5.50 | 5.25 | 5.38 | 2.75 | 2.13 |
-| gpt-6.1-sol | 6.75 | 5.75 | 6.00 | 4.50 | 2.75 | 2.63 |
+| gpt-6.1-sol-medium | 6.75 | 5.75 | 6.00 | 4.50 | 2.75 | 2.63 |
 | ornith-1.5-35b-a3b-8bit | 8.63 | 4.38 | 3.50 | 4.75 | 3.25 | 3.13 |
 | ornith-1.5-35b-a3b-4bit | 8.00 | 4.25 | 4.88 | 4.13 | 3.00 | 1.63 |
 | claude-sonnet-4.6-max | 7.25 | 3.25 | 2.25 | 3.88 | 3.38 | 3.00 |
@@ -157,6 +159,10 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 **claude-opus-5** — 39.5 / 39.5 / 39.0 / 39.0. All runs keep per-channel send-then-mark semantics.
 - *Good.* Every run uses a per-format identity chain, a per-channel ledger, post-delivery state, and a migration. Runs 1, 3, and 4 isolate failures; run 2 verifies recovery, but its review does not establish continued processing after a failed channel.
 - *Bad.* Run 1 says the dry-run records nothing while it archives rows. Runs 2–4 leave reset, retention, feed-rename, or edit-resend behavior incomplete; run 3 also includes a stray generated config.
+
+**gpt-6.1-sol-high** — 39.0 / 38.0 / 37.0 / 33.0. The per-channel, post-send ledger is universal, but the central identity strategy changes in run 4 and run 3 exposes that the URL-only variant can re-send on an unlisted tracking parameter while a failed channel starves later ones.
+- *Good.* All runs keep delivery history per channel, write receipts after a successful send, migrate an existing database additively, and leave dry-run non-consuming. Runs 1–3 use source-qualified normalized URLs; run 4 uses a feed-aware strategy that trusts newsroom IDs and uses canonical links for wire and blogroll. Runs 1–2 verify channel failure recovery and concurrent-cron locking; run 4 verifies prior successful channels are not re-sent after a later failure.
+- *Bad.* Run 3's URL allowlist re-sends an unchanged newsroom item when it gains `ref=newsletter`, and its uncaught `DeliveryError` blocks every later channel indefinitely while the earlier channel stays broken. Runs 1–2 omit retention for both growing tables and leave reset/feed-rename handling incomplete; run 4 retains the unbounded `items` insert, holds a write lock during dry-run, and silently skips later channels for that tick after a failure.
 
 **qwen3.8-flash-next-q4_k_xl** — 37.5 / 36.5 / 35.5 / 35.5. The ledger design is stable, but no run fully isolates delivery failures.
 - *Good.* All runs use link-first identity, a per-channel ledger, post-send markers, and additive migration; fixture traps pass. Run 3 uses a per-feed `dedupe_by` rule, while the other runs use canonical-link variants.
@@ -194,7 +200,7 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 - *Good.* Every run uses a per-channel ledger and marks after delivery. Runs 1–3 use link-based identity that passes the fixture churn, and runs 1–2 use additive schema changes.
 - *Bad.* Runs 3–4 create a unique archive index without deduplicating old rows and crash on legacy databases. Run 4 also uses raw links and re-sends UTM-rotated newsroom items; runs 1–3 leave the README untouched.
 
-**gpt-6.1-sol** — 38.5 / 38.0 / 37.0 / 0.0. Runs 2–4 agree on the central design, but run 1 is a harness crash before the model produced output, so this average does not describe four comparable attempts.
+**gpt-6.1-sol-medium** — 38.5 / 38.0 / 37.0 / 0.0. Runs 2–4 agree on the central design, but run 1 is a harness crash before the model produced output, so this average does not describe four comparable attempts.
 - *Good.* Runs 2–4 use normalized URL identity, a per-channel ledger, and post-send commits; their reviews verify the fixture behavior, migration, tests, and documented tradeoffs. There is no implementation to credit in run 1.
 - *Bad.* Run 1 died on a locked harness database after 0.3s and made no change, leaving the duplicate-send bug intact. Run 2 omits reset/retention tooling and silently merges items if a URL is reused; run 3 never states that a brand-new database floods every channel on its first tick and uses one delivery lookup per item; run 4 leaves archive rows unbounded and re-sends when non-UTM query parameters are reordered.
 
@@ -228,7 +234,7 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 - Feed-aware identity separates results: raw links re-send newsroom items after UTM rotation, raw-ID-first re-sends edited wire items, and raw-ID-only fails blogroll's `NULL` IDs. Per-format stable fields or normalized source-qualified links survive the fixture changes.
 - Correct marker timing is not sufficient when `DeliveryError` aborts the loop. Qwen flash, NVFP4-medium, and Sonnet 5 max runs commonly preserve retryability yet indefinitely starve channels after a persistently broken earlier channel.
 - Additive ledger tables usually migrate existing databases. Adding item columns or unique indexes without deduplicating/backfilling old rows either leaves the change inert or crashes startup.
-- More time or money did not reliably buy better judgment: `claude-opus-5-max` averaged 39.50 in about 11 minutes for $2.91, while several slower local reasoning labels scored 32.25–34.88. Within the same NVFP4 stack, medium reasoning averaged 34.88 versus 19.50 for no-think, though the no-think set includes a 15-minute no-attempt.
+- More time or money did not reliably buy better judgment: `gpt-6.1-sol-high` averaged 36.75 in 2m 39s for $0.15, while `claude-opus-5-max` averaged 39.50 in about 11 minutes for $2.91 and several slower local reasoning labels scored 32.25–34.88. Within the same NVFP4 stack, medium reasoning averaged 34.88 versus 19.50 for no-think, though the no-think set includes a 15-minute no-attempt.
 
 <!-- BENCH:RESULTS:END -->
 
