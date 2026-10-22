@@ -1,0 +1,2237 @@
+Now let me look at the original codebase in detail, then the diff.
+Now let's look at the agent's modified files.
+Now let's see the fixtures to check feed formats and examine edge cases (edited items, missing ids, etc.)
+Second run correctly sends 0 items — dedupe works for the basic repeat case. Now let's test snapshot-b (edited items + new items):
+Good, crashed as expected. Now check if the second run resends the items that already succeeded to `ops`:
+Good — `--dry-run` is preserved correctly (DB created with schema but no rows written, items remain "fresh" on repeated dry-run calls). Now let's check the README and git log/diff for a full picture.
+Let's see the full final summary text from the agent.
+Now let's get line numbers for feeds.py and store.py for precise citations.
+Now I have everything needed. Let me write the review.
+I reviewed the agent's diff against the pristine `notify-digest` codebase, read every changed file, and actually ran `digest.py` against both fixture snapshots plus several scratch scenarios (multi-channel configs, a simulated channel failure, and a pre-existing old-schema database) to verify claims rather than take them on faith.
+
+Key findings written to `_review.md`:
+
+- **Identity strategy (9/10):** The per-format `dedupe_key` (entry_id / permalink / link) genuinely handles all three fixture failure modes — I confirmed the `utm_campaign` rotation, the edited blog post, and the regenerated wire `guid` are all correctly suppressed across snapshot-a → snapshot-b.
+- **Ambiguity handling (3/8):** Only "edited item vs. new" is named; "per-channel vs. global suppression" is decided silently and is wrong — I reproduced a case where adding a channel later permanently loses an item it never received. First-run backfill is unaddressed.
+- **Failure-mode reasoning (3/8):** The agent's own summary claims marking happens "after a successful send," but the code batches `store.mark_sent` after the *entire* channel loop. I reproduced a channel-two failure after channel-one succeeded, and channel-one's items got resent on the next run — the exact bug the task asked to fix.
+- **Existing-code respect (5/6)** and **code quality (3/4)** are decent — minimal, idiomatic diff, `--dry-run` verified intact — but docked for a migration bug: `COALESCE(raw_id, link)` backfills the wrong value for the `generic`/wire format specifically, which I reproduced with a seeded old-schema database.
+- **Documentation (2/4):** README gained a real paragraph (not just a docstring) but skips "how to reset" and "first-run" behavior as the rubric asks.
+
+Total: **25/40**, `would_merge: yes-with-fixes`. The review file has full repro commands/output and quoted code for every score.
+timestamp=2026-10-22T12:30:46.490Z level=INFO run=006d5f96 message="creating instance" directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+timestamp=2026-10-22T12:30:46.491Z level=INFO run=006d5f96 message=fromDirectory directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+timestamp=2026-10-22T12:30:46.529Z level=INFO run=006d5f96 message=bootstrapping directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+timestamp=2026-10-22T12:30:46.535Z level=INFO run=006d5f96 message=loading path=/Users/topi/.config/opencode/config.json
+timestamp=2026-10-22T12:30:46.535Z level=INFO run=006d5f96 message=loading path=/Users/topi/.config/opencode/opencode.json
+timestamp=2026-10-22T12:30:46.538Z level=INFO run=006d5f96 message=loading path=/Users/topi/.config/opencode/opencode.jsonc
+timestamp=2026-10-22T12:30:46.544Z level=INFO run=006d5f96 message=loading path=/Users/topi/.opencode/opencode.json
+timestamp=2026-10-22T12:30:46.544Z level=INFO run=006d5f96 message=loading path=/Users/topi/.opencode/opencode.jsonc
+timestamp=2026-10-22T12:30:46.573Z level=INFO run=006d5f96 message="all LSPs are disabled"
+timestamp=2026-10-22T12:30:46.573Z level=INFO run=006d5f96 message="all formatters are disabled"
+timestamp=2026-10-22T12:30:46.573Z level=INFO run=006d5f96 message=init
+timestamp=2026-10-22T12:30:46.629Z level=INFO run=006d5f96 message=created id=ses_e9c68549affeY1GBSybYSiWMP1 slug=hidden-tiger version=1.18.32 projectID=1bd7944514d91e941b6d4c059875b97d3c233037 directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 path="" workspaceID=undefined parentID=undefined title="New session - 2026-10-22T12:30:46.629Z" agent=undefined model=undefined metadata=undefined permission="[{\"permission\":\"question\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_enter\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_exit\",\"pattern\":\"*\",\"action\":\"deny\"}]" cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1792672246629 time.updated=1792672246629
+timestamp=2026-10-22T12:30:46.636Z level=INFO run=006d5f96 message="event connected"
+timestamp=2026-10-22T12:30:47.407Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=0
+[0m
+> build · anthropic/claude-sonnet-5
+[0m
+timestamp=2026-10-22T12:30:47.418Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=google/gemini-nano-banana-2.1 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=true agent=title mode=primary
+timestamp=2026-10-22T12:30:47.429Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=google/gemini-nano-banana-2.1
+timestamp=2026-10-22T12:30:47.490Z level=INFO run=006d5f96 message=initialized
+timestamp=2026-10-22T12:30:47.532Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:47.536Z level=INFO run=006d5f96 message="shell tool using shell" shell=/bin/zsh
+timestamp=2026-10-22T12:30:47.548Z level=INFO run=006d5f96 message=init count=8
+timestamp=2026-10-22T12:30:47.931Z level=INFO run=006d5f96 message="watcher backend" directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 platform=darwin backend=fs-events
+timestamp=2026-10-22T12:30:47.932Z level=INFO run=006d5f96 message="project copy refresh started" projectID=1bd7944514d91e941b6d4c059875b97d3c233037
+timestamp=2026-10-22T12:30:48.112Z level=INFO run=006d5f96 message="project copy refresh done" projectID=1bd7944514d91e941b6d4c059875b97d3c233037 updated=[] removed="[\"/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-flint-fp8-3-10a4z_n0/notify-digest\"]"
+timestamp=2026-10-22T12:30:48.132Z level=INFO run=006d5f96 message="booting location services" directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 workspaceID=undefined
+timestamp=2026-10-22T12:30:48.137Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16397ae71001Fgnoeu0Wh6yPot
+timestamp=2026-10-22T12:30:48.138Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:30:48.139Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:30:50.861Z level=INFO run=006d5f96 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md resolved=/Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md
+timestamp=2026-10-22T12:30:50.863Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="ls -la /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:50.866Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/Users/topi/proj/qwen3.8-27b-bench/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:30:50.866Z level=INFO run=006d5f96 message=asking id=per_16397bbf2001CFjMxHPnZQgRib permission=external_directory patterns="[\"/Users/topi/proj/qwen3.8-27b-bench/*\"]"
+timestamp=2026-10-22T12:30:50.868Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat /Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls -la /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest
+total 56
+drwxr-xr-x  10 topi  staff   320 20 elokuuta    09:21 .
+drwxr-xr-x   3 topi  staff    96 20 elokuuta    09:21 ..
+-rw-r--r--   1 topi  staff  1156 20 elokuuta    09:21 channels.py
+-rw-r--r--   1 topi  staff   578 20 elokuuta    09:21 config.example.toml
+-rw-r--r--   1 topi  staff  2079 20 elokuuta    09:21 digest.py
+-rw-r--r--   1 topi  staff  2461 20 elokuuta    09:21 feeds.py
+drwxr-xr-x   4 topi  staff   128 20 elokuuta    09:21 fixtures
+-rw-r--r--   1 topi  staff   996 20 elokuuta    09:21 README.md
+-rw-r--r--   1 topi  staff   511 20 elokuuta    09:21 render.py
+-rw-r--r--   1 topi  staff  1204 20 elokuuta    09:21 store.py
+[0m
+[0m$ [0mcat /Users/topi/proj/qwen3.8-27b-bench/BENCHMARK.md
+# Methodology and rubric
+
+## Protocol
+
+- Every run starts from a pristine copy of `original/notify-digest/` in a fresh
+  temp directory. Nothing carries over between runs.
+- The agent receives the prompt in `TASK.md` verbatim. No clarification is
+  offered, and if the agent asks a question it gets no answer — the run
+  proceeds to completion or to the agent's own stopping point.
+- Each model is run **3 times**. Runs are scored independently; the model's
+  score is the mean, and the spread is reported, because agent-mode variance
+  on an underspecified prompt is large enough that a single run is noise.
+- Wall-clock duration, cost, and token usage — input, output, reasoning, and
+  cache read/write separately — are recorded per run and reported alongside the
+  score. They are not part of the score.
+- Runs are invoked with `--pure` and `OPENCODE_DISABLE_CLAUDE_CODE=1`, in a
+  temp directory containing nothing but the task, so no run can see another.
+- Reviewing is done by `github-copilot/gpt-5.6-sol` against the rubric below,
+  one review per run, with the reviewer given the original codebase, the
+  agent's output, and the rubric — but not the "why this task" notes, and not
+  the other runs.
+- Aggregation into `README.md` is done by `github-copilot/gpt-5.6-terra`.
+
+## Rubric — 40 points
+
+### 1. Identity strategy — 10
+
+Does the solution pick a workable notion of "the same item", and does it hold
+up against all three feeds?
+
+| Points | |
+| --- | --- |
+| 9–10 | Per-feed or fallback-chain identity that survives rotating `utm_campaign`, a missing `raw_id`, and a regenerated `guid`; the choice is stated with its failure modes |
+| 6–8 | A single strategy that works for most items; the feed it breaks on is unaddressed or unnoticed |
+| 3–5 | Naive `raw_id` or raw-link dedupe; breaks on at least two feeds in the fixtures |
+| 0–2 | Identity is incidental — dedupe by list position, run timestamp, or similar |
+
+### 2. Ambiguity handling — 8
+
+Are the forks *named*? Per-channel vs global suppression; edited item as new
+vs same; first-run backfill. Credit is for surfacing the decision in code,
+README, or output — an implementation that quietly picks well scores mid-band;
+one that picks well *and* says so scores top.
+
+| Points | |
+| --- | --- |
+| 7–8 | All three forks identified and resolved explicitly |
+| 4–6 | One or two named; the rest decided silently but correctly |
+| 2–3 | Decided silently, and at least one decision is wrong (typically global suppression) |
+| 0–1 | Forks not recognised |
+
+### 3. Failure-mode reasoning — 8
+
+Crash and retry semantics. Where is the sent-marker written relative to
+delivery, is it per channel, what happens when channel two fails after channel
+one succeeded, and is the at-least-once / at-most-once choice argued?
+
+| Points | |
+| --- | --- |
+| 7–8 | Per-channel marking, correct ordering for the stated guarantee, tradeoff argued |
+| 4–6 | Per-channel marking, sane ordering, no discussion |
+| 2–3 | Per-run marking, or a partial-failure window that loses or duplicates a whole batch |
+| 0–1 | No consideration of failure at all |
+
+### 4. Existing-code respect — 6
+
+Does it work with the codebase or bulldoze it? Reusing the `items` archive is
+fine *if* the unconditional insert is dealt with. Rewriting `feeds.py`
+wholesale, or breaking `--dry-run`, costs points here.
+
+### 5. Code quality — 4
+
+Readability, no dead code, no vestigial columns, schema migration handled for
+an existing database, sensible SQL.
+
+### 6. Documentation — 4
+
+Does the README explain the dedupe behaviour, how to reset it, and what
+happens on first run? A docstring alone caps this at 2.
+
+## Scoring notes
+
+- Deduct across categories for the same defect only where it genuinely bears
+  on both. A global-suppression bug is an ambiguity failure (2) and, if it
+  also drops items on retry, a failure-mode one (3).
+- Scope creep (adding a plugin system, a web UI, a scheduler) is penalised
+  under existing-code respect, not correctness — unless it breaks something.
+- Half points are allowed.
+[0m
+timestamp=2026-10-22T12:30:51.241Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="ls -la /Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mls -la /Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+total 848
+-rw-r--r--   1 topi  staff  108281 22 lokakuuta   15:11 _agent.log
+-rw-r--r--   1 topi  staff  288140 22 lokakuuta   15:11 _events.jsonl
+-rw-r--r--   1 topi  staff     553 22 lokakuuta   15:11 _metrics.json
+drwxr-xr-x  14 topi  staff     448 22 lokakuuta   15:11 .
+drwxr-xr-x   6 topi  staff     192 22 lokakuuta   15:11 ..
+drwxr-xr-x  13 topi  staff     416 22 lokakuuta   15:11 .git
+-rw-r--r--   1 topi  staff    1156 20 elokuuta    09:21 channels.py
+-rw-r--r--   1 topi  staff     578 20 elokuuta    09:21 config.example.toml
+-rw-r--r--   1 topi  staff    2362 22 lokakuuta   15:10 digest.py
+-rw-r--r--   1 topi  staff    2817 22 lokakuuta   15:10 feeds.py
+drwxr-xr-x   4 topi  staff     128 20 elokuuta    09:21 fixtures
+-rw-r--r--   1 topi  staff    1236 22 lokakuuta   15:10 README.md
+-rw-r--r--   1 topi  staff     511 20 elokuuta    09:21 render.py
+-rw-r--r--   1 topi  staff    2765 22 lokakuuta   15:10 store.py
+[0m
+timestamp=2026-10-22T12:30:51.275Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:51.297Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=1
+timestamp=2026-10-22T12:30:51.320Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:51.323Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16397bda1001HSHtCUBml2mlyK
+timestamp=2026-10-22T12:30:51.323Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:30:51.328Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:30:53.701Z level=INFO run=006d5f96 message="resolved path" arg="\"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/$f\"" resolved=undefined
+timestamp=2026-10-22T12:30:53.701Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"===== $f =====\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:53.701Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat \"/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/$f\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:53.701Z level=INFO run=006d5f96 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+[0m$ [0mfor f in channels.py config.example.toml digest.py feeds.py README.md render.py store.py; do
+echo "===== $f ====="
+cat "/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/$f"
+echo
+done
+===== channels.py =====
+"""Delivery channels.
+
+`webhook` posts the digest body as JSON. `stdout` just prints it, which is
+what we use locally. Delivery is best effort: if a channel is down we let the
+exception propagate and cron will pick us up again on the next tick.
+"""
+
+import json
+import urllib.error
+import urllib.request
+
+
+class DeliveryError(Exception):
+    pass
+
+
+def send(chan_cfg, body):
+    kind = chan_cfg.get("type", "stdout")
+
+    if kind == "stdout":
+        print(f"=== {chan_cfg['name']} ===")
+        print(body)
+        return
+
+    if kind == "webhook":
+        payload = json.dumps({"text": body}).encode()
+        req = urllib.request.Request(
+            chan_cfg["url"],
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status >= 300:
+                    raise DeliveryError(f"{chan_cfg['name']}: HTTP {resp.status}")
+        except urllib.error.URLError as exc:
+            raise DeliveryError(f"{chan_cfg['name']}: {exc}") from exc
+        return
+
+    raise DeliveryError(f"unknown channel type {kind!r}")
+
+===== config.example.toml =====
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[feeds]]
+name = "blogroll"
+format = "blogroll"
+url = "file://fixtures/snapshot-a/blogroll.json"
+
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-a/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port", "levy", "fee"]
+
+[[channels]]
+name = "energy"
+type = "stdout"
+title = "Energy digest"
+keywords = ["tender", "grid", "offshore"]
+
+[[channels]]
+name = "everything"
+type = "stdout"
+title = "Firehose"
+keywords = []
+
+===== digest.py =====
+#!/usr/bin/env python3
+"""notify-digest — poll a few feeds, filter them, send digests to channels.
+
+Run from cron. See README.md.
+"""
+
+import argparse
+import sys
+import tomllib
+from pathlib import Path
+
+import channels
+import feeds
+import render
+import store
+
+
+def load_config(path):
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
+def matches(item, filt):
+    """A channel filter is a list of keywords; empty list means 'everything'."""
+    keywords = filt.get("keywords", [])
+    if not keywords:
+        return True
+    haystack = (item["title"] + " " + item.get("summary", "")).lower()
+    return any(k.lower() in haystack for k in keywords)
+
+
+def run_once(cfg, db, dry_run=False):
+    all_items = []
+    for feed_cfg in cfg["feeds"]:
+        try:
+            items = feeds.fetch(feed_cfg)
+        except feeds.FeedError as exc:
+            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+            continue
+        store.record_items(db, feed_cfg["name"], items)
+        all_items.extend(items)
+
+    all_items.sort(key=lambda i: i.get("published", ""), reverse=True)
+
+    sent = 0
+    for chan_cfg in cfg["channels"]:
+        selected = [i for i in all_items if matches(i, chan_cfg)]
+        if not selected:
+            continue
+        body = render.digest(selected, chan_cfg)
+        if dry_run:
+            print(f"--- would send to {chan_cfg['name']} ---")
+            print(body)
+            continue
+        channels.send(chan_cfg, body)
+        sent += len(selected)
+
+    return sent
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="digest")
+    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--db", default="digest.sqlite3")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args(argv)
+
+    cfg = load_config(args.config)
+    db = store.connect(args.db)
+    try:
+        sent = run_once(cfg, db, dry_run=args.dry_run)
+        print(f"sent {sent} items")
+    finally:
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+===== feeds.py =====
+"""Feed loading.
+
+Feeds are JSON documents. Remote feeds are fetched over HTTP; local ones
+(used in development and in the fixtures/ directory) are read from disk.
+
+The three providers we currently pull from do not agree on much, so this
+module normalises them into a common item shape:
+
+    {"title": str, "link": str, "summary": str, "published": str,
+     "source": str, "raw_id": str | None}
+"""
+
+import json
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+class FeedError(Exception):
+    pass
+
+
+def _load(feed_cfg):
+    url = feed_cfg["url"]
+    if url.startswith("file://") or not url.startswith("http"):
+        path = Path(url.replace("file://", ""))
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise FeedError(str(exc)) from exc
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise FeedError(str(exc)) from exc
+
+
+def fetch(feed_cfg):
+    doc = _load(feed_cfg)
+    name = feed_cfg["name"]
+    fmt = feed_cfg.get("format", "generic")
+
+    if fmt == "newsroom":
+        rows = doc.get("entries", [])
+        return [
+            {
+                "title": r["headline"],
+                "link": r["url"],
+                "summary": r.get("standfirst", ""),
+                "published": r.get("published_at", ""),
+                "source": name,
+                "raw_id": str(r["entry_id"]),
+            }
+            for r in rows
+        ]
+
+    if fmt == "blogroll":
+        # No stable identifier of any kind in this one.
+        return [
+            {
+                "title": r["title"],
+                "link": r["permalink"],
+                "summary": r.get("excerpt", ""),
+                "published": r.get("date", ""),
+                "source": name,
+                "raw_id": None,
+            }
+            for r in doc.get("posts", [])
+        ]
+
+    # "generic": has a guid, but the provider regenerates it whenever an
+    # item is edited (typos, added tags, retitles).
+    return [
+        {
+            "title": r["title"],
+            "link": r["link"],
+            "summary": r.get("description", ""),
+            "published": r.get("pubDate", ""),
+            "source": name,
+            "raw_id": r.get("guid"),
+        }
+        for r in doc.get("items", [])
+    ]
+
+===== README.md =====
+# notify-digest
+
+A small cron job that pulls a handful of feeds, filters the items per channel,
+and sends each channel a digest.
+
+## Running
+
+```sh
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3
+```
+
+`--dry-run` prints what would be sent instead of sending it.
+
+Requires Python 3.11+ (uses `tomllib`). No third-party dependencies.
+
+## Layout
+
+| File | Purpose |
+| --- | --- |
+| `digest.py` | CLI entry point, the per-run loop |
+| `feeds.py` | Fetching and normalising the three feed formats |
+| `store.py` | SQLite archive of everything seen |
+| `render.py` | Digest text |
+| `channels.py` | Delivery (stdout, webhook) |
+
+The `fixtures/` directory holds two snapshots of the feeds taken at different
+times, so you can work on this without network access. Point the config at
+`snapshot-a` or `snapshot-b`.
+
+## Deployment
+
+Runs from cron on the utility box:
+
+```
+*/15 * * * * cd /srv/notify-digest && python3 digest.py >> /var/log/digest.log 2>&1
+```
+
+===== render.py =====
+"""Digest rendering."""
+
+import textwrap
+
+
+def digest(items, chan_cfg):
+    lines = [f"{chan_cfg.get('title', 'Digest')} — {len(items)} item(s)", ""]
+    for item in items:
+        lines.append(f"* {item['title']}  [{item['source']}]")
+        summary = (item.get("summary") or "").strip()
+        if summary:
+            lines.extend(textwrap.wrap(summary, width=76, initial_indent="  ", subsequent_indent="  "))
+        lines.append(f"  {item['link']}")
+        lines.append("")
+    return "\n".join(lines)
+
+===== store.py =====
+"""SQLite persistence.
+
+The `items` table is an archive of everything we have ever seen, mostly so
+that we can answer "did this ever come through?" when someone asks. Nothing
+reads it at the moment.
+"""
+
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    raw_id      TEXT,
+    title       TEXT NOT NULL,
+    link        TEXT NOT NULL,
+    summary     TEXT,
+    published   TEXT,
+    first_seen  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
+"""
+
+
+def connect(path):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.commit()
+    return conn
+
+
+def record_items(conn, source, items):
+    conn.executemany(
+        "INSERT INTO items (source, raw_id, title, link, summary, published)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (source, i["raw_id"], i["title"], i["link"], i.get("summary"), i.get("published"))
+            for i in items
+        ],
+    )
+    conn.commit()
+
+
+def count_items(conn):
+    return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
+[0m
+timestamp=2026-10-22T12:30:53.747Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:53.770Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=2
+timestamp=2026-10-22T12:30:53.791Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:53.798Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16397c74b001kbsfkBjB35AjyD
+timestamp=2026-10-22T12:30:53.798Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:30:53.798Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:30:55.679Z level=INFO run=006d5f96 message="resolved path" arg="\"/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/$f\"" resolved=undefined
+timestamp=2026-10-22T12:30:55.679Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"===== $f =====\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:55.679Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat \"/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/$f\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:55.679Z level=INFO run=006d5f96 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+[0m$ [0mfor f in digest.py feeds.py store.py README.md; do
+echo "===== $f ====="
+cat "/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/$f"
+echo
+done
+===== digest.py =====
+#!/usr/bin/env python3
+"""notify-digest — poll a few feeds, filter them, send digests to channels.
+
+Run from cron. See README.md.
+"""
+
+import argparse
+import sys
+import tomllib
+from pathlib import Path
+
+import channels
+import feeds
+import render
+import store
+
+
+def load_config(path):
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
+def matches(item, filt):
+    """A channel filter is a list of keywords; empty list means 'everything'."""
+    keywords = filt.get("keywords", [])
+    if not keywords:
+        return True
+    haystack = (item["title"] + " " + item.get("summary", "")).lower()
+    return any(k.lower() in haystack for k in keywords)
+
+
+def run_once(cfg, db, dry_run=False):
+    fresh = []
+    for feed_cfg in cfg["feeds"]:
+        try:
+            items = feeds.fetch(feed_cfg)
+        except feeds.FeedError as exc:
+            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+            continue
+        fresh.extend(
+            i for i in items if not store.is_sent(db, feed_cfg["name"], i["dedupe_key"])
+        )
+
+    fresh.sort(key=lambda i: i.get("published", ""), reverse=True)
+
+    sent = 0
+    sent_by_source = {}
+    for chan_cfg in cfg["channels"]:
+        selected = [i for i in fresh if matches(i, chan_cfg)]
+        if not selected:
+            continue
+        body = render.digest(selected, chan_cfg)
+        if dry_run:
+            print(f"--- would send to {chan_cfg['name']} ---")
+            print(body)
+            sent += len(selected)
+            continue
+        channels.send(chan_cfg, body)
+        sent += len(selected)
+        for item in selected:
+            sent_by_source.setdefault(item["source"], []).append(item)
+
+    for source, sent_items in sent_by_source.items():
+        store.mark_sent(db, source, sent_items)
+
+    return sent
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="digest")
+    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--db", default="digest.sqlite3")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args(argv)
+
+    cfg = load_config(args.config)
+    db = store.connect(args.db)
+    try:
+        sent = run_once(cfg, db, dry_run=args.dry_run)
+        print(f"sent {sent} items")
+    finally:
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+===== feeds.py =====
+"""Feed loading.
+
+Feeds are JSON documents. Remote feeds are fetched over HTTP; local ones
+(used in development and in the fixtures/ directory) are read from disk.
+
+The three providers we currently pull from do not agree on much, so this
+module normalises them into a common item shape:
+
+    {"title": str, "link": str, "summary": str, "published": str,
+     "source": str, "raw_id": str | None, "dedupe_key": str}
+
+`dedupe_key` is the stable identity an item keeps for its whole life:
+entry ids, permalinks, or — for providers that only mint versioned
+guids — the item URL. It is what we use to recognise repeats.
+"""
+
+import json
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+class FeedError(Exception):
+    pass
+
+
+def _load(feed_cfg):
+    url = feed_cfg["url"]
+    if url.startswith("file://") or not url.startswith("http"):
+        path = Path(url.replace("file://", ""))
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise FeedError(str(exc)) from exc
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise FeedError(str(exc)) from exc
+
+
+def fetch(feed_cfg):
+    doc = _load(feed_cfg)
+    name = feed_cfg["name"]
+    fmt = feed_cfg.get("format", "generic")
+
+    if fmt == "newsroom":
+        rows = doc.get("entries", [])
+        return [
+            {
+                "title": r["headline"],
+                "link": r["url"],
+                "summary": r.get("standfirst", ""),
+                "published": r.get("published_at", ""),
+                "source": name,
+                "raw_id": str(r["entry_id"]),
+                "dedupe_key": str(r["entry_id"]),
+            }
+            for r in rows
+        ]
+
+    if fmt == "blogroll":
+        # No stable identifier of any kind in this one.
+        return [
+            {
+                "title": r["title"],
+                "link": r["permalink"],
+                "summary": r.get("excerpt", ""),
+                "published": r.get("date", ""),
+                "source": name,
+                "raw_id": None,
+                "dedupe_key": r["permalink"],
+            }
+            for r in doc.get("posts", [])
+        ]
+
+    # "generic": has a guid, but the provider regenerates it whenever an
+    # item is edited (typos, added tags, retitles).
+    return [
+        {
+            "title": r["title"],
+            "link": r["link"],
+            "summary": r.get("description", ""),
+            "published": r.get("pubDate", ""),
+            "source": name,
+            "raw_id": r.get("guid"),
+            "dedupe_key": r["link"],
+        }
+        for r in doc.get("items", [])
+    ]
+
+===== store.py =====
+"""SQLite persistence.
+
+The `items` table is an archive of everything we have ever sent. It doubles
+as the ledger that tells a fresh run which items are new and which are repeats.
+"""
+
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    raw_id      TEXT,
+    title       TEXT NOT NULL,
+    link        TEXT NOT NULL,
+    summary     TEXT,
+    published   TEXT,
+    first_seen  TEXT NOT NULL DEFAULT (datetime('now')),
+    dedupe_key  TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
+"""
+
+
+def connect(path):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
+    if "dedupe_key" not in cols:
+        # Databases created before dedupe_key existed get it added on the fly;
+        # backfill from the raw identifiers we used before.
+        conn.execute("ALTER TABLE items ADD COLUMN dedupe_key TEXT NOT NULL DEFAULT ''")
+        conn.execute(
+            "UPDATE items SET dedupe_key = COALESCE(raw_id, link) WHERE dedupe_key = ''"
+        )
+    conn.commit()
+    return conn
+
+
+def is_sent(conn, source, dedupe_key):
+    """True if we have already sent an item from this source with this key.
+
+    Items are identified by (source, dedupe_key); that key is the stable
+    per-item identity the feed providers expose (entry id, permalink, or —
+    for providers that only mint versioned guids — the item URL).
+    """
+    row = conn.execute(
+        "SELECT 1 FROM items WHERE source = ? AND dedupe_key = ? LIMIT 1",
+        (source, dedupe_key),
+    ).fetchone()
+    return row is not None
+
+
+def mark_sent(conn, source, items):
+    """Archive items as sent, skipping anything we have already archived.
+
+    Idempotent per (source, dedupe_key), so calling it twice is harmless. Returns
+    the items that were genuinely new.
+    """
+    known = {
+        row[0]
+        for row in conn.execute("SELECT dedupe_key FROM items WHERE source = ?", (source,))
+    }
+    fresh = [i for i in items if i["dedupe_key"] not in known]
+    conn.executemany(
+        "INSERT INTO items (source, raw_id, title, link, summary, published, dedupe_key)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                source,
+                i["raw_id"],
+                i["title"],
+                i["link"],
+                i.get("summary"),
+                i.get("published"),
+                i["dedupe_key"],
+            )
+            for i in fresh
+        ],
+    )
+    conn.commit()
+    return fresh
+
+
+def count_items(conn):
+    return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
+
+===== README.md =====
+# notify-digest
+
+A small cron job that pulls a handful of feeds, filters the items per channel,
+and sends each channel a digest.
+
+Only items that have not been sent before are included: the SQLite archive
+double as a sent-ledger, so a run that picks up familiar items sends none of
+them. Items are recognised by their stable per-feed id (`dedupe_key`, see
+`feeds.py`).
+
+## Running
+
+```sh
+cp config.example.toml config.toml
+python3 digest.py --config config.toml --db digest.sqlite3
+```
+
+`--dry-run` prints what would be sent instead of sending it.
+
+Requires Python 3.11+ (uses `tomllib`). No third-party dependencies.
+
+## Layout
+
+| File | Purpose |
+| --- | --- |
+| `digest.py` | CLI entry point, the per-run loop |
+| `feeds.py` | Fetching and normalising the three feed formats |
+| `store.py` | SQLite archive of everything seen |
+| `render.py` | Digest text |
+| `channels.py` | Delivery (stdout, webhook) |
+
+The `fixtures/` directory holds two snapshots of the feeds taken at different
+times, so you can work on this without network access. Point the config at
+`snapshot-a` or `snapshot-b`.
+
+## Deployment
+
+Runs from cron on the utility box:
+
+```
+*/15 * * * * cd /srv/notify-digest && python3 digest.py >> /var/log/digest.log 2>&1
+```
+[0m
+timestamp=2026-10-22T12:30:55.717Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:55.736Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=3
+timestamp=2026-10-22T12:30:55.762Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:55.764Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16397cef8001WTmL08FBtzXCSW
+timestamp=2026-10-22T12:30:55.764Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:30:55.765Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:30:58.277Z level=INFO run=006d5f96 message="resolved path" arg="\"$D/$f\"" resolved=undefined
+timestamp=2026-10-22T12:30:58.278Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"===== $f =====\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:58.278Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat \"$D/$f\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:30:58.278Z level=INFO run=006d5f96 message=evaluated permission=bash pattern=echo action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/original/notify-digest
+for f in fixtures/snapshot-a/*.json fixtures/snapshot-b/*.json; do
+echo "===== $f ====="
+cat "$D/$f"
+echo
+done
+===== fixtures/snapshot-a/blogroll.json =====
+{
+  "posts": [
+    {"title": "Notes on port fee arithmetic", "permalink": "https://blog.example/port-fee-arithmetic", "excerpt": "Working through the levy numbers.", "date": "2026-08-14T11:05:00Z"},
+    {"title": "A short history of offshore tenders", "permalink": "https://blog.example/offshore-tender-history", "excerpt": "How we got here.", "date": "2026-08-13T16:20:00Z"}
+  ]
+}
+
+===== fixtures/snapshot-a/newsroom.json =====
+{
+  "entries": [
+    {"entry_id": 84121, "headline": "Regulator opens inquiry into port fees", "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33", "standfirst": "Shipping operators say the levy is unlawful.", "published_at": "2026-08-14T09:12:00Z"},
+    {"entry_id": 84118, "headline": "Grid operator delays offshore tender", "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33", "standfirst": "The auction slips to Q1.", "published_at": "2026-08-14T07:40:00Z"}
+  ]
+}
+
+===== fixtures/snapshot-a/wire.json =====
+{
+  "items": [
+    {"guid": "wire-2026-08-14-0031", "title": "Port fee inquiry opened", "link": "https://wire.example/i/0031", "description": "Regulator confirms inquiry.", "pubDate": "2026-08-14T09:20:00Z"},
+    {"guid": "wire-2026-08-13-0918", "title": "Tender timetable under review", "link": "https://wire.example/i/0918", "description": "Grid operator statement.", "pubDate": "2026-08-13T18:02:00Z"}
+  ]
+}
+
+===== fixtures/snapshot-b/blogroll.json =====
+{
+  "posts": [
+    {"title": "Notes on port fee arithmetic (updated)", "permalink": "https://blog.example/port-fee-arithmetic", "excerpt": "Working through the levy numbers. Now with the corrected table.", "date": "2026-08-14T11:05:00Z"},
+    {"title": "A short history of offshore tenders", "permalink": "https://blog.example/offshore-tender-history", "excerpt": "How we got here.", "date": "2026-08-13T16:20:00Z"}
+  ]
+}
+
+===== fixtures/snapshot-b/newsroom.json =====
+{
+  "entries": [
+    {"entry_id": 84130, "headline": "Union responds to port fee inquiry", "url": "https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34", "standfirst": "Dockworkers back the levy.", "published_at": "2026-08-14T13:55:00Z"},
+    {"entry_id": 84121, "headline": "Regulator opens inquiry into port fees", "url": "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w34", "standfirst": "Shipping operators say the levy is unlawful.", "published_at": "2026-08-14T09:12:00Z"},
+    {"entry_id": 84118, "headline": "Grid operator delays offshore tender", "url": "https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w34", "standfirst": "The auction slips to Q1.", "published_at": "2026-08-14T07:40:00Z"}
+  ]
+}
+
+===== fixtures/snapshot-b/wire.json =====
+{
+  "items": [
+    {"guid": "wire-2026-08-14-0031-r2", "title": "Port fee inquiry opened", "link": "https://wire.example/i/0031", "description": "Regulator confirms inquiry. Adds operator comment.", "pubDate": "2026-08-14T09:20:00Z"},
+    {"guid": "wire-2026-08-13-0918", "title": "Tender timetable under review", "link": "https://wire.example/i/0918", "description": "Grid operator statement.", "pubDate": "2026-08-13T18:02:00Z"}
+  ]
+}
+[0m
+timestamp=2026-10-22T12:30:58.337Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:58.357Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=4
+timestamp=2026-10-22T12:30:58.377Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:30:58.379Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16397d936001h9vUqop49wjCUz
+timestamp=2026-10-22T12:30:58.379Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:30:58.380Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:23.820Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="nl -ba \"$D/digest.py\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:23.820Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="sed -n '30,65p'" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+nl -ba "$D/digest.py" | sed -n '30,65p'
+30	
+    31	
+    32	def run_once(cfg, db, dry_run=False):
+    33	    fresh = []
+    34	    for feed_cfg in cfg["feeds"]:
+    35	        try:
+    36	            items = feeds.fetch(feed_cfg)
+    37	        except feeds.FeedError as exc:
+    38	            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+    39	            continue
+    40	        fresh.extend(
+    41	            i for i in items if not store.is_sent(db, feed_cfg["name"], i["dedupe_key"])
+    42	        )
+    43	
+    44	    fresh.sort(key=lambda i: i.get("published", ""), reverse=True)
+    45	
+    46	    sent = 0
+    47	    sent_by_source = {}
+    48	    for chan_cfg in cfg["channels"]:
+    49	        selected = [i for i in fresh if matches(i, chan_cfg)]
+    50	        if not selected:
+    51	            continue
+    52	        body = render.digest(selected, chan_cfg)
+    53	        if dry_run:
+    54	            print(f"--- would send to {chan_cfg['name']} ---")
+    55	            print(body)
+    56	            sent += len(selected)
+    57	            continue
+    58	        channels.send(chan_cfg, body)
+    59	        sent += len(selected)
+    60	        for item in selected:
+    61	            sent_by_source.setdefault(item["source"], []).append(item)
+    62	
+    63	    for source, sent_items in sent_by_source.items():
+    64	        store.mark_sent(db, source, sent_items)
+    65
+[0m
+timestamp=2026-10-22T12:31:23.858Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:23.877Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=5
+timestamp=2026-10-22T12:31:23.899Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:23.901Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_163983ce5001Y5EYlauVIk4JOy
+timestamp=2026-10-22T12:31:23.902Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:23.902Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:29.661Z level=INFO run=006d5f96 message="resolved path" arg=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+timestamp=2026-10-22T12:31:29.661Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:29.662Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test/.git resolved=/tmp/notify-digest-test/.git
+timestamp=2026-10-22T12:31:29.663Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test/_agent.log resolved=/tmp/notify-digest-test/_agent.log
+timestamp=2026-10-22T12:31:29.663Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test/_events.jsonl resolved=/tmp/notify-digest-test/_events.jsonl
+timestamp=2026-10-22T12:31:29.663Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test/_metrics.json resolved=/tmp/notify-digest-test/_metrics.json
+timestamp=2026-10-22T12:31:29.663Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:29.663Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:29.663Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:29.664Z level=INFO run=006d5f96 message=asking id=per_163985380001zdes6CsFKNLS53 permission=external_directory patterns="[\"/tmp/*\",\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:31:29.665Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cp -r /Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 /tmp/notify-digest-test" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:29.665Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -rf /tmp/notify-digest-test/.git /tmp/notify-digest-test/_agent.log /tmp/notify-digest-test/_events.jsonl /tmp/notify-digest-test/_metrics.json" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:29.665Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 --version" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:29.665Z level=INFO run=006d5f96 message=evaluated permission=bash pattern=ls action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcp -r /Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 /tmp/notify-digest-test
+rm -rf /tmp/notify-digest-test/.git /tmp/notify-digest-test/_agent.log /tmp/notify-digest-test/_events.jsonl /tmp/notify-digest-test/_metrics.json
+cd /tmp/notify-digest-test
+python3 --version
+ls
+Python 3.9.6
+channels.py
+config.example.toml
+digest.py
+feeds.py
+fixtures
+README.md
+render.py
+store.py
+[0m
+timestamp=2026-10-22T12:31:29.726Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:29.745Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=6
+timestamp=2026-10-22T12:31:29.769Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:29.771Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639853d20010NV41HGiHek19p
+timestamp=2026-10-22T12:31:29.772Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:29.772Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:32.318Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="which python3.11 python3.12 python3.13 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:32.318Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="ls /usr/local/bin/python3* /opt/homebrew/bin/python3* 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mwhich python3.11 python3.12 python3.13 2>/dev/null; ls /usr/local/bin/python3* /opt/homebrew/bin/python3* 2>/dev/null
+python3.11 not found
+python3.12 not found
+/opt/homebrew/bin/python3.13
+zsh:1: no matches found: /usr/local/bin/python3*
+[0m
+timestamp=2026-10-22T12:31:32.343Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:32.376Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=7
+timestamp=2026-10-22T12:31:32.407Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:32.409Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_163985e19001WTeu29DoayZ3lj
+timestamp=2026-10-22T12:31:32.409Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:32.410Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:34.264Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:34.266Z level=INFO run=006d5f96 message="resolved path" arg=config.example.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/config.example.toml
+timestamp=2026-10-22T12:31:34.266Z level=INFO run=006d5f96 message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/config.toml
+timestamp=2026-10-22T12:31:34.266Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:34.266Z level=INFO run=006d5f96 message=asking id=per_16398657a001o7ktVOxj02R0jN permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:31:34.267Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cp config.example.toml config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:34.267Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config.toml --db digest.sqlite3 --dry-run" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test && cp config.example.toml config.toml && /opt/homebrew/bin/python3.13 digest.py --config config.toml --db digest.sqlite3 --dry-run
+--- would send to ops ---
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+--- would send to energy ---
+Energy digest — 3 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+--- would send to everything ---
+Firehose — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 12 items
+[0m
+timestamp=2026-10-22T12:31:34.347Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:34.366Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=8
+timestamp=2026-10-22T12:31:34.390Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:34.392Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639865df001iHr9FWJ6RRfNGi
+timestamp=2026-10-22T12:31:34.393Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:34.393Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:37.947Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:37.949Z level=INFO run=006d5f96 message="resolved path" arg=digest.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/digest.sqlite3
+timestamp=2026-10-22T12:31:37.949Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:37.949Z level=INFO run=006d5f96 message=asking id=per_1639873dd002OG8wP8DAte92dZ permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:31:37.950Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -f digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:37.950Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:37.950Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"---- second run (should be empty, snapshot-a unchanged) ----\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test && rm -f digest.sqlite3 && /opt/homebrew/bin/python3.13 digest.py --config config.toml --db digest.sqlite3
+echo "---- second run (should be empty, snapshot-a unchanged) ----"
+/opt/homebrew/bin/python3.13 digest.py --config config.toml --db digest.sqlite3
+=== ops ===
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+=== energy ===
+Energy digest — 3 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+=== everything ===
+Firehose — 6 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+* A short history of offshore tenders  [blogroll]
+  How we got here.
+  https://blog.example/offshore-tender-history
+
+sent 12 items
+---- second run (should be empty, snapshot-a unchanged) ----
+sent 0 items
+[0m
+timestamp=2026-10-22T12:31:38.069Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:38.090Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=9
+timestamp=2026-10-22T12:31:38.108Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:38.110Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16398746b001JjXg3xJPResIRw
+timestamp=2026-10-22T12:31:38.110Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:38.110Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:41.061Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:41.063Z level=INFO run=006d5f96 message="resolved path" arg=config.toml resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/config.toml
+timestamp=2026-10-22T12:31:41.063Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:41.063Z level=INFO run=006d5f96 message=asking id=per_16398800700174ivvRRRySYPL0 permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:31:41.064Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat config.toml" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:41.064Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="sed 's/snapshot-a/snapshot-b/'" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:41.064Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"---- run against snapshot-b with existing db (should show only genuinely new items, and treat edited blog/wire items as NOT new) ----\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:41.064Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-b.toml --db digest.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+cat config.toml | sed 's/snapshot-a/snapshot-b/' > config-b.toml
+echo "---- run against snapshot-b with existing db (should show only genuinely new items, and treat edited blog/wire items as NOT new) ----"
+/opt/homebrew/bin/python3.13 digest.py --config config-b.toml --db digest.sqlite3
+---- run against snapshot-b with existing db (should show only genuinely new items, and treat edited blog/wire items as NOT new) ----
+=== ops ===
+Ops digest — 1 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+=== everything ===
+Firehose — 1 item(s)
+
+* Union responds to port fee inquiry  [newsroom]
+  Dockworkers back the levy.
+  https://newsroom.example/2026/08/port-fees-union?utm_source=feed&utm_campaign=w34
+
+sent 2 items
+[0m
+timestamp=2026-10-22T12:31:41.143Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:41.162Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=10
+timestamp=2026-10-22T12:31:41.181Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:41.183Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16398806a001KhKVIhWqWVZQXZ
+timestamp=2026-10-22T12:31:41.183Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:41.183Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:46.643Z level=INFO run=006d5f96 message=cleanup prune=7.days
+timestamp=2026-10-22T12:31:48.992Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:48.995Z level=INFO run=006d5f96 message="resolved path" arg=digest-fail.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/digest-fail.sqlite3
+timestamp=2026-10-22T12:31:48.995Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:48.995Z level=INFO run=006d5f96 message=asking id=per_163989f03001ipiK00l1Ad4LEb permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:31:48.997Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat > config-fail.toml << 'EOF'\n[[feeds]]\nname = \"newsroom\"\nformat = \"newsroom\"\nurl = \"file://fixtures/snapshot-a/newsroom.json\"\n\n[[feeds]]\nname = \"blogroll\"\nformat = \"blogroll\"\nurl = \"file://fixtures/snapshot-a/blogroll.json\"\n\n[[feeds]]\nname = \"wire\"\nformat = \"generic\"\nurl = \"file://fixtures/snapshot-a/wire.json\"\n\n[[channels]]\nname = \"ops\"\ntype = \"stdout\"\ntitle = \"Ops digest\"\nkeywords = [\"port\", \"levy\", \"fee\"]\n\n[[channels]]\nname = \"broken-webhook\"\ntype = \"webhook\"\nurl = \"http://127.0.0.1:1/nope\"\ntitle = \"Broken webhook\"\nkeywords = []\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:48.997Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -f digest-fail.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:48.997Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"---- first run: ops succeeds (stdout), then broken-webhook raises DeliveryError ----\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:48.997Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-fail.toml --db digest-fail.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:48.997Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"exit code: $?\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+cat > config-fail.toml << 'EOF'
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[feeds]]
+name = "blogroll"
+format = "blogroll"
+url = "file://fixtures/snapshot-a/blogroll.json"
+
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-a/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port", "levy", "fee"]
+
+[[channels]]
+name = "broken-webhook"
+type = "webhook"
+url = "http://127.0.0.1:1/nope"
+title = "Broken webhook"
+keywords = []
+EOF
+rm -f digest-fail.sqlite3
+echo "---- first run: ops succeeds (stdout), then broken-webhook raises DeliveryError ----"
+/opt/homebrew/bin/python3.13 digest.py --config config-fail.toml --db digest-fail.sqlite3
+echo "exit code: $?"
+
+---- first run: ops succeeds (stdout), then broken-webhook raises DeliveryError ----
+=== ops ===
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 1319, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              encode_chunked=req.has_header('Transfer-encoding'))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1358, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1404, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1353, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1113, in _send_output
+    self.send(msg)
+    ~~~~~~~~~^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1057, in send
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1023, in connect
+    self.sock = self._create_connection(
+                ~~~~~~~~~~~~~~~~~~~~~~~^
+        (self.host,self.port), self.timeout, self.source_address)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [Errno 61] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/notify-digest-test/channels.py", line 33, in send
+    with urllib.request.urlopen(req, timeout=10) as resp:
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 189, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 489, in open
+    response = self._open(req, data)
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 506, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+                              '_open', req)
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 466, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 1348, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 1322, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 61] Connection refused>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/notify-digest-test/digest.py", line 87, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/private/tmp/notify-digest-test/digest.py", line 79, in main
+    sent = run_once(cfg, db, dry_run=args.dry_run)
+  File "/private/tmp/notify-digest-test/digest.py", line 58, in run_once
+    channels.send(chan_cfg, body)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/private/tmp/notify-digest-test/channels.py", line 37, in send
+    raise DeliveryError(f"{chan_cfg['name']}: {exc}") from exc
+channels.DeliveryError: broken-webhook: <urlopen error [Errno 61] Connection refused>
+exit code: 1
+[0m
+timestamp=2026-10-22T12:31:49.091Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:49.112Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=11
+timestamp=2026-10-22T12:31:49.133Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:49.139Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_163989f79001y9C00ij4lJg6xd
+timestamp=2026-10-22T12:31:49.139Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:49.140Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:31:52.218Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:31:52.220Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:31:52.220Z level=INFO run=006d5f96 message=asking id=per_16398ab9c001ZnD3YNUp3Pz5YS permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:31:52.221Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"---- second run with same broken webhook config: are ops items resent? ----\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:52.221Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-fail.toml --db digest-fail.sqlite3 2>&1" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:31:52.221Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="head -30" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+echo "---- second run with same broken webhook config: are ops items resent? ----"
+/opt/homebrew/bin/python3.13 digest.py --config config-fail.toml --db digest-fail.sqlite3 2>&1 | head -30
+---- second run with same broken webhook config: are ops items resent? ----
+=== ops ===
+Ops digest — 3 item(s)
+
+* Notes on port fee arithmetic  [blogroll]
+  Working through the levy numbers.
+  https://blog.example/port-fee-arithmetic
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/urllib/request.py", line 1319, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              encode_chunked=req.has_header('Transfer-encoding'))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1358, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1404, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1353, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+timestamp=2026-10-22T12:31:52.308Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:52.329Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=12
+timestamp=2026-10-22T12:31:52.350Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:31:52.352Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16398ac09001gmCFljglkJYaRd
+timestamp=2026-10-22T12:31:52.352Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:31:52.353Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:32:27.021Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:32:27.023Z level=INFO run=006d5f96 message="resolved path" arg=digest-multichan.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/digest-multichan.sqlite3
+timestamp=2026-10-22T12:32:27.023Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:32:27.023Z level=INFO run=006d5f96 message=asking id=per_16399338f00138c5xcDfnjNw8r permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -f digest-multichan.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat > config-c1.toml << 'EOF'\n[[feeds]]\nname = \"newsroom\"\nformat = \"newsroom\"\nurl = \"file://fixtures/snapshot-a/newsroom.json\"\n\n[[channels]]\nname = \"ops\"\ntype = \"stdout\"\ntitle = \"Ops digest\"\nkeywords = [\"port\"]\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"--- run 1: only 'ops' channel exists, matches port-fees item ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db digest-multichan.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat > config-c2.toml << 'EOF'\n[[feeds]]\nname = \"newsroom\"\nformat = \"newsroom\"\nurl = \"file://fixtures/snapshot-a/newsroom.json\"\n\n[[channels]]\nname = \"ops\"\ntype = \"stdout\"\ntitle = \"Ops digest\"\nkeywords = [\"port\"]\n\n[[channels]]\nname = \"everything\"\ntype = \"stdout\"\ntitle = \"Firehose - newly added channel\"\nkeywords = []\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"--- run 2: new 'everything' channel added afterwards. Does it get the already-sent item? ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:32:27.024Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-c2.toml --db digest-multichan.sqlite3" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+rm -f digest-multichan.sqlite3
+cat > config-c1.toml << 'EOF'
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port"]
+EOF
+echo "--- run 1: only 'ops' channel exists, matches port-fees item ---"
+/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db digest-multichan.sqlite3
+
+cat > config-c2.toml << 'EOF'
+[[feeds]]
+name = "newsroom"
+format = "newsroom"
+url = "file://fixtures/snapshot-a/newsroom.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = ["port"]
+
+[[channels]]
+name = "everything"
+type = "stdout"
+title = "Firehose - newly added channel"
+keywords = []
+EOF
+echo "--- run 2: new 'everything' channel added afterwards. Does it get the already-sent item? ---"
+/opt/homebrew/bin/python3.13 digest.py --config config-c2.toml --db digest-multichan.sqlite3
+--- run 1: only 'ops' channel exists, matches port-fees item ---
+=== ops ===
+Ops digest — 1 item(s)
+
+* Regulator opens inquiry into port fees  [newsroom]
+  Shipping operators say the levy is unlawful.
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+sent 1 items
+--- run 2: new 'everything' channel added afterwards. Does it get the already-sent item? ---
+=== everything ===
+Firehose - newly added channel — 1 item(s)
+
+* Grid operator delays offshore tender  [newsroom]
+  The auction slips to Q1.
+  https://newsroom.example/2026/08/offshore-tender?utm_source=feed&utm_campaign=w33
+
+sent 1 items
+[0m
+timestamp=2026-10-22T12:32:27.169Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:32:27.194Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=13
+timestamp=2026-10-22T12:32:27.215Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:32:27.222Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16399343b0017H4SKeznUGLnLu
+timestamp=2026-10-22T12:32:27.222Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:32:27.223Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:08.255Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:33:08.258Z level=INFO run=006d5f96 message="resolved path" arg=old-schema.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/old-schema.sqlite3
+timestamp=2026-10-22T12:33:08.258Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:33:08.258Z level=INFO run=006d5f96 message=asking id=per_16399d4a2001IFyAjJgIRUmTW4 permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:33:08.260Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -f old-schema.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:08.260Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 - << 'EOF'\nimport sqlite3\nconn = sqlite3.connect(\"old-schema.sqlite3\")\nconn.executescript(\"\"\"\nCREATE TABLE items (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    source TEXT NOT NULL,\n    raw_id TEXT,\n    title TEXT NOT NULL,\n    link TEXT NOT NULL,\n    summary TEXT,\n    published TEXT,\n    first_seen TEXT NOT NULL DEFAULT (datetime('now'))\n);\nCREATE INDEX idx_items_source ON items(source);\n\"\"\")\nconn.execute(\"INSERT INTO items (source, raw_id, title, link, summary, published) VALUES (?,?,?,?,?,?)\",\n             (\"newsroom\", \"84121\", \"Regulator opens inquiry into port fees\", \"https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33\", \"x\", \"2026-08-14T09:12:00Z\"))\nconn.commit()\nconn.close()\nprint(\"seeded old-schema db\")\nEOF" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+rm -f old-schema.sqlite3
+/opt/homebrew/bin/python3.13 - << 'EOF'
+import sqlite3
+conn = sqlite3.connect("old-schema.sqlite3")
+conn.executescript("""
+CREATE TABLE items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    raw_id TEXT,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL,
+    summary TEXT,
+    published TEXT,
+    first_seen TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_items_source ON items(source);
+""")
+conn.execute("INSERT INTO items (source, raw_id, title, link, summary, published) VALUES (?,?,?,?,?,?)",
+             ("newsroom", "84121", "Regulator opens inquiry into port fees", "https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33", "x", "2026-08-14T09:12:00Z"))
+conn.commit()
+conn.close()
+print("seeded old-schema db")
+EOF
+
+seeded old-schema db
+[0m
+timestamp=2026-10-22T12:33:08.328Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:08.359Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=14
+timestamp=2026-10-22T12:33:08.382Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:08.385Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16399d508001P1WD79vihKwcNg
+timestamp=2026-10-22T12:33:08.386Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:08.387Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:11.891Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:33:11.893Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:33:11.893Z level=INFO run=006d5f96 message=asking id=per_16399e2d5001hjvLX7yG9LMSw6 permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:33:11.894Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"--- running against snapshot-a (newsroom only) with pre-existing old-schema db that has entry 84121 recorded by raw_id but no dedupe_key column ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:11.894Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db old-schema.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:11.894Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"--- inspect migrated schema and backfilled dedupe_key ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:11.894Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -c \"\nimport sqlite3\nc = sqlite3.connect('old-schema.sqlite3')\nprint([r[1] for r in c.execute('PRAGMA table_info(items)')])\nfor row in c.execute('SELECT source, raw_id, link, dedupe_key FROM items'):\n    print(row)\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+echo "--- running against snapshot-a (newsroom only) with pre-existing old-schema db that has entry 84121 recorded by raw_id but no dedupe_key column ---"
+/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db old-schema.sqlite3
+echo "--- inspect migrated schema and backfilled dedupe_key ---"
+/opt/homebrew/bin/python3.13 -c "
+import sqlite3
+c = sqlite3.connect('old-schema.sqlite3')
+print([r[1] for r in c.execute('PRAGMA table_info(items)')])
+for row in c.execute('SELECT source, raw_id, link, dedupe_key FROM items'):
+    print(row)
+"
+--- running against snapshot-a (newsroom only) with pre-existing old-schema db that has entry 84121 recorded by raw_id but no dedupe_key column ---
+sent 0 items
+--- inspect migrated schema and backfilled dedupe_key ---
+['id', 'source', 'raw_id', 'title', 'link', 'summary', 'published', 'first_seen', 'dedupe_key']
+('newsroom', '84121', 'https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33', '84121')
+[0m
+timestamp=2026-10-22T12:33:11.987Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:12.011Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=15
+timestamp=2026-10-22T12:33:12.035Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:12.037Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_16399e34c001CoNJs4BYJ83aXq
+timestamp=2026-10-22T12:33:12.037Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:12.037Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:27.014Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:33:27.015Z level=INFO run=006d5f96 message="resolved path" arg=old-wire.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/old-wire.sqlite3
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=asking id=per_1639a1de8001xbzrMbjGCiMBDP permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -f old-wire.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 - << 'EOF'\nimport sqlite3\nconn = sqlite3.connect(\"old-wire.sqlite3\")\nconn.executescript(\"\"\"\nCREATE TABLE items (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    source TEXT NOT NULL,\n    raw_id TEXT,\n    title TEXT NOT NULL,\n    link TEXT NOT NULL,\n    summary TEXT,\n    published TEXT,\n    first_seen TEXT NOT NULL DEFAULT (datetime('now'))\n);\n\"\"\")\n# Simulate pre-existing archive row for the wire item, recorded under the OLD guid\n# (before any edit), using the OLD schema (no dedupe_key column) -- exactly what\n# a pre-migration production db would contain.\nconn.execute(\"INSERT INTO items (source, raw_id, title, link, summary, published) VALUES (?,?,?,?,?,?)\",\n             (\"wire\", \"wire-2026-08-14-0031\", \"Port fee inquiry opened\", \"https://wire.example/i/0031\", \"x\", \"2026-08-14T09:20:00Z\"))\nconn.commit()\nconn.close()\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="cat > config-wire.toml << 'EOF'\n[[feeds]]\nname = \"wire\"\nformat = \"generic\"\nurl = \"file://fixtures/snapshot-a/wire.json\"\n\n[[channels]]\nname = \"ops\"\ntype = \"stdout\"\ntitle = \"Ops digest\"\nkeywords = []\nEOF" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"--- migrate + run: same wire.json (guid wire-2026-08-14-0031, unchanged) against pre-existing old-schema archive row for that same item ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-wire.toml --db old-wire.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"--- backfilled dedupe_key vs freshly computed one ---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:27.016Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -c \"\nimport sqlite3\nc = sqlite3.connect('old-wire.sqlite3')\nfor row in c.execute('SELECT source, raw_id, link, dedupe_key FROM items'):\n    print(row)\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+rm -f old-wire.sqlite3
+/opt/homebrew/bin/python3.13 - << 'EOF'
+import sqlite3
+conn = sqlite3.connect("old-wire.sqlite3")
+conn.executescript("""
+CREATE TABLE items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    raw_id TEXT,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL,
+    summary TEXT,
+    published TEXT,
+    first_seen TEXT NOT NULL DEFAULT (datetime('now'))
+);
+""")
+# Simulate pre-existing archive row for the wire item, recorded under the OLD guid
+# (before any edit), using the OLD schema (no dedupe_key column) -- exactly what
+# a pre-migration production db would contain.
+conn.execute("INSERT INTO items (source, raw_id, title, link, summary, published) VALUES (?,?,?,?,?,?)",
+             ("wire", "wire-2026-08-14-0031", "Port fee inquiry opened", "https://wire.example/i/0031", "x", "2026-08-14T09:20:00Z"))
+conn.commit()
+conn.close()
+EOF
+cat > config-wire.toml << 'EOF'
+[[feeds]]
+name = "wire"
+format = "generic"
+url = "file://fixtures/snapshot-a/wire.json"
+
+[[channels]]
+name = "ops"
+type = "stdout"
+title = "Ops digest"
+keywords = []
+EOF
+echo "--- migrate + run: same wire.json (guid wire-2026-08-14-0031, unchanged) against pre-existing old-schema archive row for that same item ---"
+/opt/homebrew/bin/python3.13 digest.py --config config-wire.toml --db old-wire.sqlite3
+echo "--- backfilled dedupe_key vs freshly computed one ---"
+/opt/homebrew/bin/python3.13 -c "
+import sqlite3
+c = sqlite3.connect('old-wire.sqlite3')
+for row in c.execute('SELECT source, raw_id, link, dedupe_key FROM items'):
+    print(row)
+"
+--- migrate + run: same wire.json (guid wire-2026-08-14-0031, unchanged) against pre-existing old-schema archive row for that same item ---
+=== ops ===
+Ops digest — 2 item(s)
+
+* Port fee inquiry opened  [wire]
+  Regulator confirms inquiry.
+  https://wire.example/i/0031
+
+* Tender timetable under review  [wire]
+  Grid operator statement.
+  https://wire.example/i/0918
+
+sent 2 items
+--- backfilled dedupe_key vs freshly computed one ---
+('wire', 'wire-2026-08-14-0031', 'https://wire.example/i/0031', 'wire-2026-08-14-0031')
+('wire', 'wire-2026-08-14-0031', 'https://wire.example/i/0031', 'https://wire.example/i/0031')
+('wire', 'wire-2026-08-13-0918', 'https://wire.example/i/0918', 'https://wire.example/i/0918')
+[0m
+timestamp=2026-10-22T12:33:27.144Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:27.166Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=16
+timestamp=2026-10-22T12:33:27.189Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:27.191Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639a1e7f001vs3A6yfSEI0443
+timestamp=2026-10-22T12:33:27.191Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:27.192Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:43.919Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:33:43.921Z level=INFO run=006d5f96 message="resolved path" arg=dryrun-check.sqlite3 resolved=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/dryrun-check.sqlite3
+timestamp=2026-10-22T12:33:43.921Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:33:43.921Z level=INFO run=006d5f96 message=asking id=per_1639a5ff1001hA6Q22WPNhuTpz permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -f dryrun-check.sqlite3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db dryrun-check.sqlite3 --dry-run" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="tail -3" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"(db should not exist / be empty since dry-run)\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="ls -la dryrun-check.sqlite3 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:43.922Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -c \"\nimport sqlite3\nc = sqlite3.connect('dryrun-check.sqlite3')\nprint(c.execute('SELECT COUNT(*) FROM items').fetchone())\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mcd /tmp/notify-digest-test
+rm -f dryrun-check.sqlite3
+/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db dryrun-check.sqlite3 --dry-run | tail -3
+echo "---"
+/opt/homebrew/bin/python3.13 digest.py --config config-c1.toml --db dryrun-check.sqlite3 --dry-run | tail -3
+echo "(db should not exist / be empty since dry-run)"
+ls -la dryrun-check.sqlite3 2>/dev/null
+/opt/homebrew/bin/python3.13 -c "
+import sqlite3
+c = sqlite3.connect('dryrun-check.sqlite3')
+print(c.execute('SELECT COUNT(*) FROM items').fetchone())
+"
+https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+sent 1 items
+---
+  https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33
+
+sent 1 items
+(db should not exist / be empty since dry-run)
+-rw-r--r--  1 topi  wheel  16384 22 lokakuuta   15:33 dryrun-check.sqlite3
+(0,)
+[0m
+timestamp=2026-10-22T12:33:44.071Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:44.090Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=17
+timestamp=2026-10-22T12:33:44.116Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:44.118Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639a609b001C8M27YcFl7UC5h
+timestamp=2026-10-22T12:33:44.119Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:44.119Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:47.877Z level=INFO run=006d5f96 message="resolved path" arg="\"$D\"" resolved=undefined
+timestamp=2026-10-22T12:33:47.877Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="git log --oneline -20" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:47.877Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"---\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:47.877Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="diff -u /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/README.md \"$D/README.md\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+cd "$D" && git log --oneline -20 2>/dev/null
+echo "---"
+diff -u /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/README.md "$D/README.md"
+1bd7944 pristine notify-digest
+---
+--- /Users/topi/proj/qwen3.8-27b-bench/original/notify-digest/README.md	2026-08-20 09:21:19
++++ /Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/README.md	2026-10-22 15:10:16
+@@ -3,6 +3,11 @@
+ A small cron job that pulls a handful of feeds, filters the items per channel,
+ and sends each channel a digest.
+ 
++Only items that have not been sent before are included: the SQLite archive
++double as a sent-ledger, so a run that picks up familiar items sends none of
++them. Items are recognised by their stable per-feed id (`dedupe_key`, see
++`feeds.py`).
++
+ ## Running
+ 
+ ```sh
+[0m
+timestamp=2026-10-22T12:33:47.911Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:47.930Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=18
+timestamp=2026-10-22T12:33:47.952Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:47.957Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639a6f9c0012uwVUV1MK1bhyE
+timestamp=2026-10-22T12:33:47.958Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:47.958Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:52.419Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="grep -n -i \"per-channel\\|per channel\\or channel\\|backfill\\|first run\\|first-run\\|global suppress\\|migrat\" \"$D/_agent.log\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:52.419Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="head -60" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+grep -n -i "per-channel\|per channel\or channel\|backfill\|first run\|first-run\|global suppress\|migrat" "$D/_agent.log" | head -60
+(no output)
+[0m
+timestamp=2026-10-22T12:33:52.453Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:52.471Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=19
+timestamp=2026-10-22T12:33:52.494Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:52.500Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639a81590015dnpS1a9r7LjYl
+timestamp=2026-10-22T12:33:52.500Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:52.500Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:33:55.180Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="wc -l \"$D/_agent.log\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:55.180Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="grep -n -i \"channel\\|backfill\\|migrat\\|dedupe\\|idempot\" \"$D/_agent.log\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:33:55.180Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="head -80" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+wc -l "$D/_agent.log"
+grep -n -i "channel\|backfill\|migrat\|dedupe\|idempot" "$D/_agent.log" | head -80
+497 /Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_agent.log
+50:timestamp=2026-10-22T11:52:39.972Z level=INFO run=ae15a042 message=evaluated permission=read pattern=channels.py action.permission=read action.pattern=* action.action=allow
+51:timestamp=2026-10-22T11:52:39.980Z level=INFO run=ae15a042 message="touching file" file=/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-flint-fp8-3-10a4z_n0/notify-digest/channels.py
+340:timestamp=2026-10-22T12:08:32.754Z level=INFO run=ae15a042 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -m py_compile feeds.py store.py digest.py channels.py render.py" action.permission=* action.action=allow action.pattern=*
+369:timestamp=2026-10-22T12:09:26.233Z level=INFO run=ae15a042 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -c \"\nimport sqlite3, sys\nsys.path.insert(0, '.')\nimport store\n# Simulate a database created by the OLD code (no dedupe_key column).\nc = sqlite3.connect('/tmp/digest-old.sqlite3')\nc.executescript(store.SCHEMA.replace(',\\n    dedupe_key  TEXT NOT NULL DEFAULT \\'\\')', ''))\nc.execute(\\\"INSERT INTO items (source, raw_id, title, link, summary, published) VALUES ('newsroom', '84121', 'Regulator opens inquiry into port fees', 'https://newsroom.example/2026/08/port-fees?utm_source=feed&utm_campaign=w33', 'x', '2026-08-14T09:12:00Z')\\\")\nc.commit(); c.close()\nprint('old-schema db created')\n\"" action.permission=* action.action=allow action.pattern=*
+373:timestamp=2026-10-22T12:09:26.233Z level=INFO run=ae15a042 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -c \"\nimport sqlite3\nc = sqlite3.connect('/tmp/digest-old.sqlite3')\nprint('columns:', [r[1] for r in c.execute('PRAGMA table_info(items)')])\nprint('rows:', c.execute('SELECT source, raw_id, dedupe_key, link FROM items').fetchall())\n\"" action.permission=* action.action=allow action.pattern=*
+412:timestamp=2026-10-22T12:10:28.068Z level=INFO run=ae15a042 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -m py_compile digest.py feeds.py store.py render.py channels.py" action.permission=* action.action=allow action.pattern=*
+471:timestamp=2026-10-22T12:11:00.037Z level=INFO run=ae15a042 message=evaluated permission=bash pattern="/opt/homebrew/bin/python3.13 -m py_compile digest.py feeds.py store.py render.py channels.py" action.permission=* action.action=allow action.pattern=*
+[0m
+timestamp=2026-10-22T12:33:55.216Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:55.236Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=20
+timestamp=2026-10-22T12:33:55.258Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:33:55.260Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639a8c250019E7jc1dC2UkksR
+timestamp=2026-10-22T12:33:55.260Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:33:55.261Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:00.224Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="grep -n \"text=\" \"$D/_agent.log\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:34:00.224Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="tail -5" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:34:00.224Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 -c \"\nimport json\nwith open('$D/_events.jsonl') as f:\n    lines = f.readlines()\nprint(len(lines))\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+grep -n "text=" "$D/_agent.log" | tail -5
+python3 -c "
+import json
+with open('$D/_events.jsonl') as f:
+    lines = f.readlines()
+print(len(lines))
+"
+165
+[0m
+timestamp=2026-10-22T12:34:00.277Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:00.299Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=21
+timestamp=2026-10-22T12:34:00.319Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:00.321Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639a9fec0015UmSo8jdMm6SGS
+timestamp=2026-10-22T12:34:00.321Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:00.321Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:04.023Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 - << 'EOF'\nimport json\nwith open(\"/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl\") as f:\n    for line in f:\n        try:\n            ev = json.loads(line)\n        except Exception:\n            continue\n        t = ev.get(\"type\")\n        if t in (\"message.part.updated\",) and ev.get(\"properties\",{}).get(\"part\",{}).get(\"type\") == \"text\":\n            txt = ev[\"properties\"][\"part\"].get(\"text\",\"\")\n            if len(txt) > 200:\n                print(\"----\")\n                print(txt[:3000])\nEOF" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+python3 - << 'EOF'
+import json
+with open("/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl") as f:
+    for line in f:
+        try:
+            ev = json.loads(line)
+        except Exception:
+            continue
+        t = ev.get("type")
+        if t in ("message.part.updated",) and ev.get("properties",{}).get("part",{}).get("type") == "text":
+            txt = ev["properties"]["part"].get("text","")
+            if len(txt) > 200:
+                print("----")
+                print(txt[:3000])
+EOF
+
+(no output)
+[0m
+timestamp=2026-10-22T12:34:04.078Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:04.104Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=22
+timestamp=2026-10-22T12:34:04.126Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:04.128Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639aaec9001B6pNXcmaQBEWks
+timestamp=2026-10-22T12:34:04.128Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:04.129Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:06.741Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 - << 'EOF'\nimport json\nseen_types=set()\nwith open(\"/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl\") as f:\n    for line in f:\n        try:\n            ev = json.loads(line)\n        except Exception:\n            continue\n        seen_types.add(ev.get(\"type\"))\nprint(seen_types)\nEOF" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mpython3 - << 'EOF'
+import json
+seen_types=set()
+with open("/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl") as f:
+    for line in f:
+        try:
+            ev = json.loads(line)
+        except Exception:
+            continue
+        seen_types.add(ev.get("type"))
+print(seen_types)
+EOF
+
+{'step_finish', 'step_start', 'text', 'tool_use'}
+[0m
+timestamp=2026-10-22T12:34:06.786Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:06.802Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=23
+timestamp=2026-10-22T12:34:06.828Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:06.830Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639ab953001mvzS6lHYo7vmoy
+timestamp=2026-10-22T12:34:06.830Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:06.830Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:09.439Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 - << 'EOF'\nimport json\nwith open(\"/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl\") as f:\n    for line in f:\n        try:\n            ev = json.loads(line)\n        except Exception:\n            continue\n        if ev.get(\"type\") == \"text\":\n            txt = ev.get(\"text\",\"\")\n            if len(txt) > 100:\n                print(\"=====\")\n                print(txt)\nEOF" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mpython3 - << 'EOF'
+import json
+with open("/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl") as f:
+    for line in f:
+        try:
+            ev = json.loads(line)
+        except Exception:
+            continue
+        if ev.get("type") == "text":
+            txt = ev.get("text","")
+            if len(txt) > 100:
+                print("=====")
+                print(txt)
+EOF
+
+(no output)
+[0m
+timestamp=2026-10-22T12:34:09.490Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:09.512Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=24
+timestamp=2026-10-22T12:34:09.534Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:09.540Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639ac3e9001QiQVaLZZk1XRNh
+timestamp=2026-10-22T12:34:09.540Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:09.541Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:11.827Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 -c \"\nimport json\nwith open('/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl') as f:\n    lines=f.readlines()\nfor l in lines[:3]:\n    print(l[:500])\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mpython3 -c "
+import json
+with open('/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl') as f:
+    lines=f.readlines()
+for l in lines[:3]:
+    print(l[:500])
+"
+{"type":"step_start","timestamp":1792669818587,"sessionID":"ses_e9c8db2f3ffevbelbR4U7e7dGA","part":{"id":"prt_163729ed4001V4bmWUCHQe9p9i","messageID":"msg_16372503900127chVSUr7SYd8m","sessionID":"ses_e9c8db2f3ffevbelbR4U7e7dGA","snapshot":"60e32c74cce9f6d80a6ce2a38bb06e557cba698f","type":"step-start"}}
+
+{"type":"tool_use","timestamp":1792669823447,"sessionID":"ses_e9c8db2f3ffevbelbR4U7e7dGA","part":{"type":"tool","tool":"bash","callID":"6Z4LwUzcRAvHsq9rajZ30qcUlWgRbz9N","state":{"status":"completed","input":{"command":"ls -la /private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-flint-fp8-3-10a4z_n0/notify-digest"},"output":"total 56\ndrwxr-xr-x  11 topi  staff   352 22 lokakuuta   14:49 .\ndrwx------   3 topi  staff    96 22 lokakuuta   14:49 ..\ndrwxr-xr-x  13 topi  staff   416 22 lo
+{"type":"tool_use","timestamp":1792669941956,"sessionID":"ses_e9c8db2f3ffevbelbR4U7e7dGA","part":{"type":"tool","tool":"bash","callID":"05zUOLXFhDpDYww3x94CRL3zyXOFTIHm","state":{"status":"completed","input":{"command":"find / -name \"digest.py\" -not -path \"*/node_modules/*\" -not -path \"/proc/*\" -not -path \"/sys/*\" 2>/dev/null"},"output":"/System/Volumes/Data/private/var/folders/p4/n0xz6vp14wq0xc0ktf097vhw0000gn/T/bench-flint-fp8-3-10a4z_n0/notify-digest/digest.py\n/System/Volumes/Data/pr
+[0m
+timestamp=2026-10-22T12:34:11.872Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:11.891Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=25
+timestamp=2026-10-22T12:34:11.914Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:11.916Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639acd35001a73hVn8t7Czklh
+timestamp=2026-10-22T12:34:11.916Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:11.917Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:14.817Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 -c \"\nimport json\nwith open('/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl') as f:\n    for line in f:\n        ev=json.loads(line)\n        if ev.get('type')=='text':\n            print(json.dumps(ev)[:800])\n            print('---')\n\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:34:14.817Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="head -100" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mpython3 -c "
+import json
+with open('/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl') as f:
+    for line in f:
+        ev=json.loads(line)
+        if ev.get('type')=='text':
+            print(json.dumps(ev)[:800])
+            print('---')
+" | head -100
+{"type": "text", "timestamp": 1792670399290, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637b59280011p9J1qYcah3Gou", "messageID": "msg_16375d716001hKtmlJiwVvYQly", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Let me check the full repo state, any tests, and related config:", "time": {"start": 1792670390568, "end": 1792670399288}}}
+---
+{"type": "text", "timestamp": 1792670422824, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637bc077001jgkeySCsxOQ2Cr", "messageID": "msg_1637b7b630016VUN0xPwbXnDZl", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "No tests or lint configs exist in this repo. Let me reproduce the bug first with a scratch DB:", "time": {"start": 1792670417015, "end": 1792670422823}}}
+---
+{"type": "text", "timestamp": 1792670619255, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637ed1ad001gloQBvtQXjL8PR", "messageID": "msg_1637c7697001jXhXUhFlrk0tPc", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Bug reproduced: every cron tick re-sends all 12 items, and the archive DB is written but never read. Let me check usages before editing:", "time": {"start": 1792670618029, "end": 1792670619253}}}
+---
+{"type": "text", "timestamp": 1792670626187, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637ee163001biOuTbsYtq5eGM", "messageID": "msg_1637ed6b1001V9YkpUG6ug0HvV", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Now I'll implement the fix. First, `store.py` \u2014 turn the write-only archive into a read/write sent-ledger:", "time": {"start": 1792670622051, "end": 1792670626186}}}
+---
+{"type": "text", "timestamp": 1792670650140, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637f1ea50011ufbaRNu7RVEvc", "messageID": "msg_1637f1d41001i3v1ZYrCLEQc7N", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Now the core fix in `digest.py`: only digest items that haven't been sent yet, and record sends after a successful delivery.", "time": {"start": 1792670637733, "end": 1792670650139}}}
+---
+{"type": "text", "timestamp": 1792670654319, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637f54d300136tpcOPWhQtb0B", "messageID": "msg_1637f4f62001J6zU66nXPwOAU2", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Let me review both changed files in full:", "time": {"start": 1792670651603, "end": 1792670654317}}}
+---
+{"type": "text", "timestamp": 1792670675006, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637fa0ec001qU476RcwknCON5", "messageID": "msg_1637f5f98001OJ2q8TyZSvqEd0", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Now let me verify the fix end-to-end. First: two consecutive runs against the same snapshot should not repeat.", "time": {"start": 1792670671085, "end": 1792670675005}}}
+---
+{"type": "text", "timestamp": 1792670680180, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1637fb811001MxYFGxUs6BC3Wc", "messageID": "msg_1637fb0d3001M14d21hrG4An9o", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Second run now sends nothing. Now test progression: run against `snapshot-b` with the same DB \u2014 only genuinely new items should go out.", "time": {"start": 1792670677009, "end": 1792670680179}}}
+---
+{"type": "text", "timestamp": 1792670834519, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16381f4d1001X2KE1SHeBT6X3h", "messageID": "msg_1637ff6c6001YMma99ZXeiiGAa", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "The snapshot-b test exposed a second facet of the identity problem: newsroom entries get a tracking-param-drifting URL (`utm_campaign=w33` \u2192 `w34`) across snapshots, so keying on `link` alone would still re-send. The right fix is a per-format stable **dedupe key**. Let me add that in `feeds.py`:", "time": {"start": 1792670823633, "end": 1792670834516}}}
+---
+{"type": "text", "timestamp": 1792670871727, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_163824a1e001rpzw0dbxlLngmK", "messageID": "msg_163823741001UsLe9zg5Rc4bdB", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Now update `store.py` to key the ledger on `dedupe_key`, including a migration for pre-existing databases:", "time": {"start": 1792670845470, "end": 1792670871725}}}
+---
+{"type": "text", "timestamp": 1792670875736, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16382b2940014XmrYNrf3m9FIj", "messageID": "msg_16382b0f00015oXJ8nwB8nYISC", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Now update `digest.py` to pass the dedupe key through:", "time": {"start": 1792670872212, "end": 1792670875734}}}
+---
+{"type": "text", "timestamp": 1792670902504, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1638316ce001nrsG72ZQ5UlmXL", "messageID": "msg_16382c9a60017jX3LEBbhg9ZGQ", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "The generic branch came out with broken indentation from my edit \u2014 let me fix it:", "time": {"start": 1792670897870, "end": 1792670902503}}}
+---
+{"type": "text", "timestamp": 1792670923547, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_163836641001SGuL2UwAN4PUsa", "messageID": "msg_163835182001JoCE4I22gXXfwe", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "All formats now emit a proper `dedupe_key`, and everything compiles. Now the full verification sequence:", "time": {"start": 1792670918209, "end": 1792670923546}}}
+---
+{"type": "text", "timestamp": 1792670966252, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16383f804001Tszb5Zhk0fNVhQ", "messageID": "msg_163837bd5001kuwRcmvGHTq5t7", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Excellent \u2014 the fix works: run 2 sends nothing, and run 3 (snapshot-b) sends only the genuinely new item, correctly recognizing the re-listed entries as repeats. Now let me verify the migration path against a pre-existing (old-schema) database:", "time": {"start": 1792670955524, "end": 1792670966251}}}
+---
+{"type": "text", "timestamp": 1792670977451, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1638446360012cHK03ZRPDMtRq", "messageID": "msg_1638422a90019VRcu5e3DiEzbV", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Migration works cleanly and dedup holds on migrated databases too. Let me review the complete diff:", "time": {"start": 1792670975542, "end": 1792670977449}}}
+---
+{"type": "text", "timestamp": 1792671008915, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_163849a9b001a0ddRXFZfZMfKp", "messageID": "msg_163844dd50014ngMnV7CEFR03J", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "The diff reveals my `feeds.py` docstring edit accidentally re-indented an existing paragraph. Let me restore the original formatting (keeping only the intended change):", "time": {"start": 1792670997147, "end": 1792671008913}}}
+---
+{"type": "text", "timestamp": 1792671016961, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16384d4f0001YzsWApVZ8ZD74c", "messageID": "msg_16384c8e3001sXZiMhy3lAXwYW", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Now let me document the intended behaviour in the README so the next maintainer understands the fix:", "time": {"start": 1792671012080, "end": 1792671016959}}}
+---
+{"type": "text", "timestamp": 1792671028084, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16384f246001i3rvtMm8FC3Hqk", "messageID": "msg_16384e846001F9Xgn0i9AB9pk7", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Final verification \u2014 compile everything and re-run the complete scenario from a clean slate:", "time": {"start": 1792671019590, "end": 1792671028082}}}
+---
+{"type": "text", "timestamp": 1792671034889, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_1638524e0001dDMzpta7jl3r6h", "messageID": "msg_16385149d001Q2awxYTfoxuhyP", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "All scenarios pass. Let me check for stray artifacts and review the final state:", "time": {"start": 1792671032544, "end": 1792671034887}}}
+---
+{"type": "text", "timestamp": 1792671054095, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16385684b001TVv0Q5lrj6U0bv", "messageID": "msg_163854f2f001obkzspKM7r91Lk", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Two tiny naming polish edits for consistency, then a final check:", "time": {"start": 1792671049803, "end": 1792671054094}}}
+---
+{"type": "text", "timestamp": 1792671077369, "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "part": {"id": "prt_16385b625001157rRMmhHdKbuI", "messageID": "msg_163859b81001gig2NRW60vsjNU", "sessionID": "ses_e9c8db2f3ffevbelbR4U7e7dGA", "type": "text", "text": "Fixed and verified. Summary:\n\n**Root cause:** `run_once` re-fetched every feed and re-sent *all* matching items on every cron tick; the SQLite archive was written but never read, so repeats were never suppressed.\n\n**Fix (what I chose and why):**\n- `digest.py` \u2014 each run now collects only *fresh* items (`store.is_sent` check), sends those, and calls `store.mark_sent` **after** a successful send (so delivery failures are still retried next tick, as documented).\n- `feeds.py` \u2014 items now carry a stable `dedupe_key` (newsro
+---
+[0m
+timestamp=2026-10-22T12:34:14.867Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:14.887Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=26
+timestamp=2026-10-22T12:34:14.907Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:14.909Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639ad8e80011wWdjmVvTdApjx
+timestamp=2026-10-22T12:34:14.909Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:14.909Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:34:17.473Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="python3 -c \"\nimport json\nwith open('/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl') as f:\n    for line in f:\n        ev=json.loads(line)\n        if ev.get('type')=='text':\n            txt = ev['part'].get('text','')\n            if 'Root cause' in txt:\n                print(txt)\n\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mpython3 -c "
+import json
+with open('/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_events.jsonl') as f:
+    for line in f:
+        ev=json.loads(line)
+        if ev.get('type')=='text':
+            txt = ev['part'].get('text','')
+            if 'Root cause' in txt:
+                print(txt)
+"
+Fixed and verified. Summary:
+
+**Root cause:** `run_once` re-fetched every feed and re-sent *all* matching items on every cron tick; the SQLite archive was written but never read, so repeats were never suppressed.
+
+**Fix (what I chose and why):**
+- `digest.py` — each run now collects only *fresh* items (`store.is_sent` check), sends those, and calls `store.mark_sent` **after** a successful send (so delivery failures are still retried next tick, as documented).
+- `feeds.py` — items now carry a stable `dedupe_key` (newsroom → entry id, blogroll → permalink, generic → link, since generic guids get regenerated on edit and newsroom URLs drift via utm params).
+- `store.py` — the archive doubles as a sent-ledger keyed on `(source, dedupe_key)`; existing databases get the new column added + backfilled automatically on first connect.
+- `README.md` — documents the new behavior.
+
+**Verified:** fresh DB → run sends items; immediate re-run sends **0**; moving to a newer snapshot sends only genuinely new items (re-listed/edited ones correctly treated as repeats). `--dry-run` now also reports the would-send count instead of `sent 0`.
+
+The one operational note: the next cron run against the existing production `digest.sqlite3` will migrate automatically — any items already sent just before the deploy may be delivered once more, after which repeats stop.
+[0m
+timestamp=2026-10-22T12:34:17.520Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:17.540Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=27
+timestamp=2026-10-22T12:34:17.562Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:34:17.564Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639ae345001NEeAoQf8FhmkIc
+timestamp=2026-10-22T12:34:17.565Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:34:17.566Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:35:12.623Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="nl -ba \"$D/digest.py\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:35:12.623Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="sed -n '1,70p'" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+nl -ba "$D/digest.py" | sed -n '1,70p'
+1	#!/usr/bin/env python3
+     2	"""notify-digest — poll a few feeds, filter them, send digests to channels.
+     3	
+     4	Run from cron. See README.md.
+     5	"""
+     6	
+     7	import argparse
+     8	import sys
+     9	import tomllib
+    10	from pathlib import Path
+    11	
+    12	import channels
+    13	import feeds
+    14	import render
+    15	import store
+    16	
+    17	
+    18	def load_config(path):
+    19	    with open(path, "rb") as fh:
+    20	        return tomllib.load(fh)
+    21	
+    22	
+    23	def matches(item, filt):
+    24	    """A channel filter is a list of keywords; empty list means 'everything'."""
+    25	    keywords = filt.get("keywords", [])
+    26	    if not keywords:
+    27	        return True
+    28	    haystack = (item["title"] + " " + item.get("summary", "")).lower()
+    29	    return any(k.lower() in haystack for k in keywords)
+    30	
+    31	
+    32	def run_once(cfg, db, dry_run=False):
+    33	    fresh = []
+    34	    for feed_cfg in cfg["feeds"]:
+    35	        try:
+    36	            items = feeds.fetch(feed_cfg)
+    37	        except feeds.FeedError as exc:
+    38	            print(f"warn: feed {feed_cfg['name']} failed: {exc}", file=sys.stderr)
+    39	            continue
+    40	        fresh.extend(
+    41	            i for i in items if not store.is_sent(db, feed_cfg["name"], i["dedupe_key"])
+    42	        )
+    43	
+    44	    fresh.sort(key=lambda i: i.get("published", ""), reverse=True)
+    45	
+    46	    sent = 0
+    47	    sent_by_source = {}
+    48	    for chan_cfg in cfg["channels"]:
+    49	        selected = [i for i in fresh if matches(i, chan_cfg)]
+    50	        if not selected:
+    51	            continue
+    52	        body = render.digest(selected, chan_cfg)
+    53	        if dry_run:
+    54	            print(f"--- would send to {chan_cfg['name']} ---")
+    55	            print(body)
+    56	            sent += len(selected)
+    57	            continue
+    58	        channels.send(chan_cfg, body)
+    59	        sent += len(selected)
+    60	        for item in selected:
+    61	            sent_by_source.setdefault(item["source"], []).append(item)
+    62	
+    63	    for source, sent_items in sent_by_source.items():
+    64	        store.mark_sent(db, source, sent_items)
+    65	
+    66	    return sent
+    67	
+    68	
+    69	def main(argv=None):
+    70	    ap = argparse.ArgumentParser(prog="digest")
+[0m
+timestamp=2026-10-22T12:35:12.654Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:35:12.676Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=28
+timestamp=2026-10-22T12:35:12.698Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:35:12.700Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639bbaa5001ASOdhA1o6z3b1S
+timestamp=2026-10-22T12:35:12.701Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:35:12.705Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:35:15.659Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="nl -ba \"$D/feeds.py\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:35:15.659Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="echo \"===== store.py =====\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:35:15.659Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="nl -ba \"$D/store.py\"" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mD=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3
+nl -ba "$D/feeds.py"
+echo "===== store.py ====="
+nl -ba "$D/store.py"
+1	"""Feed loading.
+     2	
+     3	Feeds are JSON documents. Remote feeds are fetched over HTTP; local ones
+     4	(used in development and in the fixtures/ directory) are read from disk.
+     5	
+     6	The three providers we currently pull from do not agree on much, so this
+     7	module normalises them into a common item shape:
+     8	
+     9	    {"title": str, "link": str, "summary": str, "published": str,
+    10	     "source": str, "raw_id": str | None, "dedupe_key": str}
+    11	
+    12	`dedupe_key` is the stable identity an item keeps for its whole life:
+    13	entry ids, permalinks, or — for providers that only mint versioned
+    14	guids — the item URL. It is what we use to recognise repeats.
+    15	"""
+    16	
+    17	import json
+    18	import urllib.error
+    19	import urllib.request
+    20	from pathlib import Path
+    21	
+    22	
+    23	class FeedError(Exception):
+    24	    pass
+    25	
+    26	
+    27	def _load(feed_cfg):
+    28	    url = feed_cfg["url"]
+    29	    if url.startswith("file://") or not url.startswith("http"):
+    30	        path = Path(url.replace("file://", ""))
+    31	        try:
+    32	            return json.loads(path.read_text())
+    33	        except (OSError, json.JSONDecodeError) as exc:
+    34	            raise FeedError(str(exc)) from exc
+    35	    try:
+    36	        with urllib.request.urlopen(url, timeout=15) as resp:
+    37	            return json.loads(resp.read().decode())
+    38	    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+    39	        raise FeedError(str(exc)) from exc
+    40	
+    41	
+    42	def fetch(feed_cfg):
+    43	    doc = _load(feed_cfg)
+    44	    name = feed_cfg["name"]
+    45	    fmt = feed_cfg.get("format", "generic")
+    46	
+    47	    if fmt == "newsroom":
+    48	        rows = doc.get("entries", [])
+    49	        return [
+    50	            {
+    51	                "title": r["headline"],
+    52	                "link": r["url"],
+    53	                "summary": r.get("standfirst", ""),
+    54	                "published": r.get("published_at", ""),
+    55	                "source": name,
+    56	                "raw_id": str(r["entry_id"]),
+    57	                "dedupe_key": str(r["entry_id"]),
+    58	            }
+    59	            for r in rows
+    60	        ]
+    61	
+    62	    if fmt == "blogroll":
+    63	        # No stable identifier of any kind in this one.
+    64	        return [
+    65	            {
+    66	                "title": r["title"],
+    67	                "link": r["permalink"],
+    68	                "summary": r.get("excerpt", ""),
+    69	                "published": r.get("date", ""),
+    70	                "source": name,
+    71	                "raw_id": None,
+    72	                "dedupe_key": r["permalink"],
+    73	            }
+    74	            for r in doc.get("posts", [])
+    75	        ]
+    76	
+    77	    # "generic": has a guid, but the provider regenerates it whenever an
+    78	    # item is edited (typos, added tags, retitles).
+    79	    return [
+    80	        {
+    81	            "title": r["title"],
+    82	            "link": r["link"],
+    83	            "summary": r.get("description", ""),
+    84	            "published": r.get("pubDate", ""),
+    85	            "source": name,
+    86	            "raw_id": r.get("guid"),
+    87	            "dedupe_key": r["link"],
+    88	        }
+    89	        for r in doc.get("items", [])
+    90	    ]
+===== store.py =====
+     1	"""SQLite persistence.
+     2	
+     3	The `items` table is an archive of everything we have ever sent. It doubles
+     4	as the ledger that tells a fresh run which items are new and which are repeats.
+     5	"""
+     6	
+     7	import sqlite3
+     8	
+     9	SCHEMA = """
+    10	CREATE TABLE IF NOT EXISTS items (
+    11	    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    12	    source      TEXT NOT NULL,
+    13	    raw_id      TEXT,
+    14	    title       TEXT NOT NULL,
+    15	    link        TEXT NOT NULL,
+    16	    summary     TEXT,
+    17	    published   TEXT,
+    18	    first_seen  TEXT NOT NULL DEFAULT (datetime('now')),
+    19	    dedupe_key  TEXT NOT NULL DEFAULT ''
+    20	);
+    21	
+    22	CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
+    23	"""
+    24	
+    25	
+    26	def connect(path):
+    27	    conn = sqlite3.connect(path)
+    28	    conn.row_factory = sqlite3.Row
+    29	    conn.executescript(SCHEMA)
+    30	    cols = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
+    31	    if "dedupe_key" not in cols:
+    32	        # Databases created before dedupe_key existed get it added on the fly;
+    33	        # backfill from the raw identifiers we used before.
+    34	        conn.execute("ALTER TABLE items ADD COLUMN dedupe_key TEXT NOT NULL DEFAULT ''")
+    35	        conn.execute(
+    36	            "UPDATE items SET dedupe_key = COALESCE(raw_id, link) WHERE dedupe_key = ''"
+    37	        )
+    38	    conn.commit()
+    39	    return conn
+    40	
+    41	
+    42	def is_sent(conn, source, dedupe_key):
+    43	    """True if we have already sent an item from this source with this key.
+    44	
+    45	    Items are identified by (source, dedupe_key); that key is the stable
+    46	    per-item identity the feed providers expose (entry id, permalink, or —
+    47	    for providers that only mint versioned guids — the item URL).
+    48	    """
+    49	    row = conn.execute(
+    50	        "SELECT 1 FROM items WHERE source = ? AND dedupe_key = ? LIMIT 1",
+    51	        (source, dedupe_key),
+    52	    ).fetchone()
+    53	    return row is not None
+    54	
+    55	
+    56	def mark_sent(conn, source, items):
+    57	    """Archive items as sent, skipping anything we have already archived.
+    58	
+    59	    Idempotent per (source, dedupe_key), so calling it twice is harmless. Returns
+    60	    the items that were genuinely new.
+    61	    """
+    62	    known = {
+    63	        row[0]
+    64	        for row in conn.execute("SELECT dedupe_key FROM items WHERE source = ?", (source,))
+    65	    }
+    66	    fresh = [i for i in items if i["dedupe_key"] not in known]
+    67	    conn.executemany(
+    68	        "INSERT INTO items (source, raw_id, title, link, summary, published, dedupe_key)"
+    69	        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+    70	        [
+    71	            (
+    72	                source,
+    73	                i["raw_id"],
+    74	                i["title"],
+    75	                i["link"],
+    76	                i.get("summary"),
+    77	                i.get("published"),
+    78	                i["dedupe_key"],
+    79	            )
+    80	            for i in fresh
+    81	        ],
+    82	    )
+    83	    conn.commit()
+    84	    return fresh
+    85	
+    86	
+    87	def count_items(conn):
+    88	    return conn.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"]
+[0m
+timestamp=2026-10-22T12:35:15.692Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:35:15.711Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=29
+timestamp=2026-10-22T12:35:15.731Z level=INFO run=006d5f96 message=tracking hash=9e222e7be9f2fcb0265290a3499823d3e24dee02 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:35:15.734Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639bc68000114QQFRXHaIAIT4
+timestamp=2026-10-22T12:35:15.734Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:35:15.734Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:36:15.591Z level=INFO run=006d5f96 message=evaluated permission=edit pattern=_review.md action.permission=* action.action=allow action.pattern=*
+timestamp=2026-10-22T12:36:15.592Z level=INFO run=006d5f96 message=formatting file=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_review.md
+timestamp=2026-10-22T12:36:15.593Z level=INFO run=006d5f96 message="touching file" file=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3/_review.md
+[0m← [0mWrite _review.md
+Wrote file successfully.
+[0m
+timestamp=2026-10-22T12:36:15.640Z level=INFO run=006d5f96 message=tracking hash=454cec4d00bf08fe519764fc3ed07c98371eeaa8 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:36:15.666Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=30
+timestamp=2026-10-22T12:36:15.690Z level=INFO run=006d5f96 message=tracking hash=454cec4d00bf08fe519764fc3ed07c98371eeaa8 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:36:15.696Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639cb0b3001b1s5d1Ye8fEga4
+timestamp=2026-10-22T12:36:15.697Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:36:15.697Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:36:18.654Z level=INFO run=006d5f96 message="resolved path" arg=/tmp/notify-digest-test resolved=/tmp/notify-digest-test
+timestamp=2026-10-22T12:36:18.656Z level=INFO run=006d5f96 message=evaluated permission=external_directory pattern=/tmp/notify-digest-test/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-10-22T12:36:18.656Z level=INFO run=006d5f96 message=asking id=per_1639cbc60001lYlsNQ6eh2y6Y7 permission=external_directory patterns="[\"/tmp/notify-digest-test/*\"]"
+timestamp=2026-10-22T12:36:18.657Z level=INFO run=006d5f96 message=evaluated permission=bash pattern="rm -rf /tmp/notify-digest-test" action.permission=* action.action=allow action.pattern=*
+[0m$ [0mrm -rf /tmp/notify-digest-test
+(no output)
+[0m
+timestamp=2026-10-22T12:36:18.685Z level=INFO run=006d5f96 message=tracking hash=454cec4d00bf08fe519764fc3ed07c98371eeaa8 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:36:18.704Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=31
+timestamp=2026-10-22T12:36:18.728Z level=INFO run=006d5f96 message=tracking hash=454cec4d00bf08fe519764fc3ed07c98371eeaa8 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:36:18.733Z level=INFO run=006d5f96 message=process session.id=ses_e9c68549affeY1GBSybYSiWMP1 messageID=msg_1639cbc92001SbRCm3NvlHOwwV
+timestamp=2026-10-22T12:36:18.734Z level=INFO run=006d5f96 message=stream providerID=openrouter modelID=anthropic/claude-sonnet-5 session.id=ses_e9c68549affeY1GBSybYSiWMP1 small=false agent=build mode=primary
+timestamp=2026-10-22T12:36:18.734Z level=INFO run=006d5f96 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=openrouter llm.model=anthropic/claude-sonnet-5
+timestamp=2026-10-22T12:36:26.034Z level=INFO run=006d5f96 message=tracking hash=454cec4d00bf08fe519764fc3ed07c98371eeaa8 cwd=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3 git=/Users/topi/.local/share/opencode/snapshot/1bd7944514d91e941b6d4c059875b97d3c233037/973f8976c50f248311fb01f59f09e81d4e7b311e
+timestamp=2026-10-22T12:36:26.053Z level=INFO run=006d5f96 message=loop session.id=ses_e9c68549affeY1GBSybYSiWMP1 step=32
+timestamp=2026-10-22T12:36:26.055Z level=INFO run=006d5f96 message="exiting loop" session.id=ses_e9c68549affeY1GBSybYSiWMP1
+timestamp=2026-10-22T12:36:26.060Z level=INFO run=006d5f96 message="disposing instance" directory=/Users/topi/proj/qwen3.8-27b-bench/results/flint-fp8/run-3

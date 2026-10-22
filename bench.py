@@ -41,6 +41,19 @@ RUN_TIMEOUT = int(os.environ.get("BENCH_TIMEOUT", "3600"))
 README_BEGIN = "<!-- BENCH:RESULTS:BEGIN -->"
 README_END = "<!-- BENCH:RESULTS:END -->"
 
+# The OpenCode model ID is the local serving alias, not necessarily the model
+# artifact. Keep artifact provenance separate so future gathers retain it.
+MODEL_ARTIFACTS = {
+    "asusgx10/flint-fp8": {
+        "repository": "unsloth/flint-GGUF",
+        "filename": "flint-Q8_0.gguf",
+        "format": "GGUF",
+        "quantization": "Q8_0",
+        "url": "https://huggingface.co/unsloth/flint-GGUF/blob/main/flint-Q8_0.gguf",
+        "display_name": "flint-fp8 (Unsloth Q8_0 GGUF)",
+    },
+}
+
 
 # --------------------------------------------------------------------------
 # prompt extraction
@@ -366,6 +379,7 @@ def _do_run(n: int, total: int, label: str, args, prompt: str) -> None:
         "model": args.model,
         "variant": args.variant,
         "label": label,
+        **({"artifact": MODEL_ARTIFACTS[args.model]} if args.model in MODEL_ARTIFACTS else {}),
         "run": n,
         "exit_code": code,
         "seconds": round(seconds, 1),
@@ -566,9 +580,14 @@ def collect_summary() -> dict:
             # existed still aggregate.
             vals = [t.get("processed", t["total"] + t["cache_read"]) for t in tk]
             return round(sum(vals) / len(vals)) if vals else None
+        model_id = next((r["metrics"]["model"] for r in runs if "metrics" in r), label_dir.name)
+        artifact = next((r["metrics"]["artifact"] for r in runs
+                         if "metrics" in r and r["metrics"].get("artifact")),
+                        MODEL_ARTIFACTS.get(model_id))
         models.append({
             "label": label_dir.name,
-            "model": next((r["metrics"]["model"] for r in runs if "metrics" in r), label_dir.name),
+            "model": model_id,
+            **({"artifact": artifact, "display_name": artifact["display_name"]} if artifact else {}),
             "runs": runs,
             "mean_score": round(sum(scored) / len(scored), 2) if scored else None,
             "min_score": min(scored) if scored else None,
@@ -598,6 +617,12 @@ score spread, wall-clock seconds as mean/min/max, and mean token usage, already
 sorted by mean score. Each run also has a full written review at the
 `review_path` given in the JSON. Read the reviews — the table is the least
 interesting part of your job.
+
+Use each model's `display_name` (or `label` if absent) in tables and note
+headings. The `model` field is an OpenCode serving ID, while `artifact` records
+the actual checkpoint.
+In particular, `flint-fp8` is the local alias for Unsloth's Q8_0 GGUF, not an
+FP8 checkpoint. Preserve that provenance when rewriting the README.
 
 Rewrite everything in `README.md` between the markers
 `{begin}` and `{end}`, leaving both markers and every line outside them exactly

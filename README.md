@@ -98,6 +98,10 @@ a model, which is the fastest way to sanity-check scoring.
 
 The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX Spark) and the Claudes are from the cloud via Github Copilot.
 
+`flint-fp8` is the local OpenCode serving ID. These runs used Unsloth's
+[`flint-Q8_0.gguf`](https://huggingface.co/unsloth/flint-GGUF/blob/main/flint-Q8_0.gguf)
+from `unsloth/flint-GGUF` (GGUF, Q8_0); the ID does not describe the artifact's quantization.
+
 <!-- BENCH:RESULTS:BEGIN -->
 
 | Model | Score / 40 | Runs | Time | Tokens processed | Cost |
@@ -114,21 +118,24 @@ The Qwen 3.8 variants & Ornith 1.5 were run locally with Asus Ascent GX10 (=DGX 
 | ornith-122b-nvfp4 | 33.12 (30.0–38.0) | 4 | 14m 01s (8m 09s–26m 52s) | 1,027,716 | $0.00 |
 | qwen3.8-27b-2bit-reasoning-medium | 32.25 (26.5–37.0) | 4 | 13m 29s (5m 01s–22m 55s) | 620,248 | $0.00 |
 | claude-sonnet-5 | 31.25 (29.0–35.5) | 4 | 2m 37s (1m 44s–3m 32s) | 574,062 | $0.33 |
-| flint-nvfp4 | 30.12 (23.0–40.0) | 4 | 13m 49s (8m 48s–26m 52s) | 1,275,900 | $0.00 |
 | claude-opus-4.6-max | 29.00 (25.5–33.0) | 4 | 5m 29s (4m 23s–6m 43s) | 578,206 | $1.07 |
 | gpt-6.1-sol-medium | 28.38 (0.0–38.5) | 4 | 2m 09s (0s–2m 55s) | 162,082 | $0.11 |
 | ornith-1.5-35b-a3b-8bit | 27.62 (24.5–35.0) | 4 | 12m 00s (10m 17s–13m 01s) | 689,393 | $0.00 |
 | ornith-1.5-35b-a3b-4bit | 25.88 (20.0–30.0) | 4 | 8m 52s (6m 52s–11m 59s) | 777,324 | $0.00 |
+| flint-nvfp4 | 24.00 (23.0–25.0) | 2 | 9m 47s (8m 58s–10m 36s) | 896,613 | $0.00 |
 | claude-sonnet-4.6-max | 23.00 (18.0–28.5) | 4 | 6m 52s (4m 39s–8m 24s) | 514,191 | $0.59 |
+| flint-fp8 (Unsloth Q8_0 GGUF) | 22.88 (20.5–25.0) | 4 | 13m 19s (8m 26s–21m 20s) | 988,314 | $0.00 |
 | github-copilot-claude-sonnet-4.6 | 21.88 (18.5–29.0) | 4 | 3m 01s (2m 41s–3m 14s) | 206,790 | $0.22 |
 | github-copilot-claude-opus-4.6 | 21.25 (19.5–24.0) | 4 | 52s (35s–1m 10s) | 69,349 | $0.18 |
 | qwen3.8-27b-nvfp4-nothink | 19.50 (6.0–28.0) | 4 | 8m 13s (4m 37s–15m 29s) | 338,515 | $0.00 |
 
 `processed` is input + output + reasoning with cached reads added back: the only token figure comparable across providers and local quants. `total` is recorded per run but omitted because it excludes cached reads, and a re-read prefix may be reported as `input` or `cache_read` depending on the serving stack. `qwen3.8-27b-nvfp4-reasoning-medium`, `Qwen3.8-Flash-Next-tensorfold`, `ornith-122b-nvfp4`, and `qwen3.8-27b-nvfp4-nothink` report `cache_read` near zero; the other labels do not. Cost is not a token ranking.
 
-The locally served labels span 1.3–4.6x between fastest and slowest runs; hosted labels span 1.2–2.0x. That variation separates the setups rather than decorating the table.
+The locally served labels span 1.2–4.6x between fastest and slowest runs; hosted labels span 1.2–2.0x. That variation separates the setups rather than decorating the table.
 
 `gpt-6.1-sol-high`, `gpt-6.1-sol-medium`, and `ornith-122b-nvfp4` report non-zero mean reasoning tokens (1,335, 1,024, and 20,900). Zero does not mean a model did not think: providers may fold thinking into `output`, as the NVFP4 medium-reasoning variant's 23,374 mean output tokens versus 5,051 for its no-think variant illustrates. This is not a table column because the field is not consistently reported.
+
+### Per-category results
 
 | Model | Identity | Ambiguity | Failure modes | Existing code | Code quality | Docs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -144,12 +151,13 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 | ornith-122b-nvfp4 | 9.25 | 6.13 | 5.63 | 5.88 | 3.50 | 2.75 |
 | qwen3.8-27b-2bit-reasoning-medium | 8.38 | 5.00 | 5.88 | 6.00 | 3.75 | 3.25 |
 | claude-sonnet-5 | 8.13 | 5.88 | 5.63 | 5.13 | 3.63 | 2.88 |
-| flint-nvfp4 | 8.50 | 4.50 | 5.25 | 5.63 | 3.50 | 2.75 |
 | claude-opus-4.6-max | 8.00 | 5.50 | 5.25 | 5.38 | 2.75 | 2.13 |
 | gpt-6.1-sol-medium | 6.75 | 5.75 | 6.00 | 4.50 | 2.75 | 2.63 |
 | ornith-1.5-35b-a3b-8bit | 8.63 | 4.38 | 3.50 | 4.75 | 3.25 | 3.13 |
 | ornith-1.5-35b-a3b-4bit | 8.00 | 4.25 | 4.88 | 4.13 | 3.00 | 1.63 |
+| flint-nvfp4 | 7.50 | 2.50 | 3.00 | 5.25 | 3.50 | 2.25 |
 | claude-sonnet-4.6-max | 7.25 | 3.25 | 2.25 | 3.88 | 3.38 | 3.00 |
+| flint-fp8 (Unsloth Q8_0 GGUF) | 7.13 | 2.63 | 2.63 | 5.38 | 2.88 | 2.25 |
 | github-copilot-claude-sonnet-4.6 | 6.25 | 3.75 | 4.25 | 3.25 | 2.75 | 1.63 |
 | github-copilot-claude-opus-4.6 | 5.00 | 3.38 | 5.00 | 3.88 | 2.38 | 1.63 |
 | qwen3.8-27b-nvfp4-nothink | 5.75 | 3.00 | 1.88 | 4.75 | 1.75 | 2.38 |
@@ -204,10 +212,6 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 - *Good.* All runs derive identity and add persistent state. Runs 1–3 send then mark per channel, and all migrate the ledger; run 1 uses per-format fields, while run 4 returns to per-format identity despite its global notification state.
 - *Bad.* Run 2's `raw_id or link` re-sends edited wire items, and run 3 re-sends newsroom items after UTM rotation. Run 4's global pre-send marker permanently loses failed/later deliveries; runs 1 and 3 leave archive growth, and no run documents first-run/reset behavior.
 
-**flint-nvfp4** — 40.0 / 32.5 / 25.0 / 23.0. This is highly unstable: runs 1–2 use per-channel post-send state, while runs 3–4 regress to global archive state.
-- *Good.* Run 1 uses a locked `(channel, source, canonical-permalink)` ledger, records only after delivery, migrates existing state, and verifies fixture churn, partial channel failure, first-run behavior, legacy upgrade, and concurrent cron processes. Run 2 also uses normalized-link identity with per-channel post-send receipts; neither result is universal across the four runs.
-- *Bad.* Run 2 lets a missing link collide, scans the full archive every tick, leaves first-run/upgrade/reset behavior undocumented, and lets a failed channel starve later ones. Run 3's global `(source, raw_id)` marker permanently withholds items from later channels after a failure; run 4 both re-sends edited wire items by trusting GUID and has the same global-marking loss. Run 1 leaves both archive and ledger unbounded and offers only a whole-database reset.
-
 **claude-opus-4.6-max** — 33.0 / 30.0 / 27.5 / 25.5. Per-channel post-send delivery is stable, but identity and migration regress in later runs.
 - *Good.* Every run uses a per-channel ledger and marks after delivery. Runs 1–3 use link-based identity that passes the fixture churn, and runs 1–2 use additive schema changes.
 - *Bad.* Runs 3–4 create a unique archive index without deduplicating old rows and crash on legacy databases. Run 4 also uses raw links and re-sends UTM-rotated newsroom items; runs 1–3 leave the README untouched.
@@ -224,9 +228,17 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 - *Good.* Every run uses canonical-link identity and handles fixture churn. Runs 2 and 4 use additive ledger migration and post-send markers; run 1 has the same marker placement but no usable legacy migration.
 - *Bad.* Run 1 crashes because the existing DB lacks `items.key`. Run 3 lets dry-run consume state, loses items on failure, blocks new channels from history, and grows the archive; every run leaves the README unchanged.
 
+**flint-nvfp4** — 25.0 / 23.0. Both retained runs use fixture-safe per-feed identity, but both reuse a global archive as delivery state, so an item delivered to one channel can be withheld from another.
+- *Good.* Both runs select newsroom IDs, blogroll permalinks, and wire links, so the fixture churn is suppressed. Run 3 also collapses duplicate archive rows during migration; run 4 keeps dry-run from mutating the archive.
+- *Bad.* Run 3 globally marks an item once an earlier channel sends it, permanently withholding it from a later matching channel. Run 4 prefers a wire GUID before its stable link and also globally loses a failed channel's delivery.
+
 **claude-sonnet-4.6-max** — 28.5 / 24.0 / 21.5 / 18.0. Global item-level suppression, not per-channel delivery tracking, is universal.
 - *Good.* Runs 2–3 use feed-aware or UTM-stripped identity; run 4 uses canonical link. Run 4 marks after the channel loop, unlike runs 1–3, which mark before sending.
 - *Bad.* Runs 1–3 mark before send, permanently lose failed/later deliveries, and runs 1–2 let dry-run poison state. Run 4 globally consumes unmatched items, so a later energy channel cannot receive them.
+
+**flint-fp8 (Unsloth Q8_0 GGUF)** — 25.0 / 24.5 / 21.5 / 20.5. Every run uses a global archive rather than per-channel receipts; run 3 alone gets the three fixture identities right, but still re-sends successful channels after a later failure.
+- *Good.* Runs 1 and 3 write their sent marker after delivery rather than before it; run 1's queryless source-qualified links and run 3's per-format keys suppress the fixture churn. Run 3 also migrates an existing database; these strengths are not universal because runs 2 and 4 use `raw_id or link` and re-send the wire item when its GUID rotates.
+- *Bad.* Runs 1, 2, and 4 share one global `(source, identity)` archive, so a successful channel permanently suppresses an item for a failed or later channel; runs 2 and 4 additionally mark the whole feed before any delivery and lose unattempted batches on a channel failure. Run 3 delays global marking until after the whole channel loop, so a later failure re-sends earlier successful channels, and its legacy migration backfills wire GUIDs instead of stable links.
 
 **github-copilot-claude-sonnet-4.6** — 29.0 / 21.0 / 19.0 / 18.5. The runs disagree on identity, state scope, timing, and migration; only run 3 is coherent end to end.
 - *Good.* Run 3 uses source-and-UTM-normalized fingerprints, per-channel post-send state, and inert dry-run. Run 1 also uses per-channel post-send state; run 2's fallback identity handles the fresh-database fixtures.
@@ -242,11 +254,11 @@ The locally served labels span 1.3–4.6x between fastest and slowest runs; host
 
 ### Patterns
 
-- A `(channel, identity)` ledger written only after that channel sends is near-universal among the strongest results: both Opus 5 labels use it in every run. Global or pre-send state repeatedly loses failed/later deliveries, duplicates successful channels, or consumes history needed by new channels.
+- A `(channel, identity)` ledger written only after that channel sends is near-universal among the strongest results: both Opus 5 labels use it in every run. Global or pre-send state repeatedly loses failed/later deliveries, duplicates successful channels, or consumes history needed by new channels; flint-fp8 (Unsloth Q8_0 GGUF) demonstrates all three variants of that failure.
 - Feed-aware identity separates results: raw links re-send newsroom items after UTM rotation, raw-ID-first re-sends edited wire items, and raw-ID-only fails blogroll's `NULL` IDs. Per-format stable fields or normalized source-qualified links survive the fixture changes.
 - Correct marker timing is not sufficient when `DeliveryError` aborts the loop. Qwen flash, NVFP4-medium, and Sonnet 5 max runs commonly preserve retryability yet indefinitely starve channels after a persistently broken earlier channel.
 - Additive ledger tables usually migrate existing databases. Adding item columns or unique indexes without deduplicating/backfilling old rows either leaves the change inert or crashes startup.
-- More time or money did not reliably buy better judgment: `gpt-6.1-sol-high` averaged 36.75 in 2m 39s for $0.15, while `claude-opus-5-max` averaged 39.50 in about 11 minutes for $2.91 and several slower local reasoning labels scored 30.12–34.88. Within the same NVFP4 stack, medium reasoning averaged 34.88 versus 19.50 for no-think, though the no-think set includes a 15-minute no-attempt; `flint-nvfp4` also varied from a complete 40.0 design to global-state failures.
+- More time or money did not reliably buy better judgment: `gpt-6.1-sol-high` averaged 36.75 in 2m 39s for $0.15, while `claude-opus-5-max` averaged 39.50 in about 11 minutes for $2.91 and several slower local reasoning labels scored 24.00–34.88. Within the same NVFP4 stack, medium reasoning averaged 34.88 versus 19.50 for no-think, though the no-think set includes a 15-minute no-attempt.
 
 <!-- BENCH:RESULTS:END -->
 
